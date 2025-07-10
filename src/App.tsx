@@ -85,7 +85,7 @@ function App() {
     return history;
   }, [messages, branches]);
 
-  const handleSendMessage = useCallback(async (messageContent: string, branchId?: string) => {
+  const handleSendMessage = useCallback(async (messageContent: string, branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => {
     if (isLoading) return;
     
     // Add user message immediately
@@ -116,8 +116,21 @@ function App() {
       // Build conversation history for the current branch
       const relevantHistory = getRelevantHistory(branchId || currentBranchId);
       
+      // Prepare branch context if provided
+      let aiBranchContext: { selectedText: string; sourceMessageId: string; sourceMessage: string } | undefined;
+      if (branchContext) {
+        const sourceMessage = messages.find(m => m.id === branchContext.sourceMessageId);
+        if (sourceMessage) {
+          aiBranchContext = {
+            selectedText: branchContext.selectedText,
+            sourceMessageId: branchContext.sourceMessageId,
+            sourceMessage: sourceMessage.content
+          };
+        }
+      }
+      
       // Stream the response
-      const stream = aiService.sendMessageStream(messageContent, relevantHistory);
+      const stream = aiService.sendMessageStream(messageContent, relevantHistory, aiBranchContext);
       let accumulatedContent = '';
       
       for await (const chunk of stream) {
@@ -230,6 +243,10 @@ function App() {
       parentMessageId,
       parentBranchId,
       branchText,
+      branchContext: {
+        selectedText: branchText,
+        sourceMessageId: parentMessageId,
+      },
       messages: [],
       createdAt: new Date(),
       depth,

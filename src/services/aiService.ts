@@ -12,6 +12,12 @@ interface ConversationMessage {
   content: string;
 }
 
+interface BranchContext {
+  selectedText: string;
+  sourceMessageId: string;
+  sourceMessage: string;
+}
+
 export class AIService {
   private settings: SettingsConfig;
 
@@ -21,7 +27,8 @@ export class AIService {
 
   async *sendMessageStream(
     content: string, 
-    conversationHistory: AIMessage[] = []
+    conversationHistory: AIMessage[] = [],
+    branchContext?: BranchContext
   ): AsyncGenerator<string, AIMessage, unknown> {
     if (this.settings.aiEngine === 'mock') {
       yield* this.useMockServiceStream(content);
@@ -33,7 +40,7 @@ export class AIService {
     }
 
     try {
-      yield* this.useOpenAIServiceStream(content, conversationHistory);
+      yield* this.useOpenAIServiceStream(content, conversationHistory, branchContext);
       return this.createMessage('', 'assistant');
     } catch (error) {
       console.error('OpenAI API error, falling back to mock:', error);
@@ -44,7 +51,8 @@ export class AIService {
 
   private async *useOpenAIServiceStream(
     content: string, 
-    conversationHistory: AIMessage[]
+    conversationHistory: AIMessage[],
+    branchContext?: BranchContext
   ): AsyncGenerator<string, void, unknown> {
     const model = this.getOpenAIModel();
     
@@ -53,12 +61,25 @@ export class AIService {
       ...conversationHistory.map(msg => ({
         role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
         content: msg.content
-      })),
-      {
+      }))
+    ];
+
+    // If this is a branch conversation, add context about the branching
+    if (branchContext) {
+      messages.push({
+        role: 'user' as const,
+        content: `I want to branch our conversation to explore something specific. I've selected this text from a previous message: "${branchContext.selectedText}"
+
+From the message: "${branchContext.sourceMessage}"
+
+I want to explore this aspect further. Here's my question/comment: ${content}`
+      });
+    } else {
+      messages.push({
         role: 'user' as const,
         content: content
-      }
-    ];
+      });
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

@@ -16,6 +16,10 @@ export interface ConversationBranch {
   parentMessageId: string;
   parentBranchId?: string; // For nested branches
   branchText: string;
+  branchContext?: {
+    selectedText: string;
+    sourceMessageId: string;
+  };
   messages: ConversationMessage[];
   createdAt: Date;
   depth: number; // Track nesting level

@@ -1,5 +1,5 @@
-import { GitBranch, X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { GitBranch, X, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface SelectionPopupProps {
   selectedText: string;
@@ -10,6 +10,16 @@ interface SelectionPopupProps {
 
 const SelectionPopup = ({ selectedText, position, onBranch, onClose }: SelectionPopupProps) => {
   const popupRef = useRef<HTMLDivElement>(null);
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+
+  const handleBranch = async () => {
+    setIsCreatingBranch(true);
+    try {
+      await onBranch();
+    } finally {
+      setIsCreatingBranch(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -63,11 +73,21 @@ const SelectionPopup = ({ selectedText, position, onBranch, onClose }: Selection
       
       <div className="flex items-center justify-between gap-2">
         <button
-          onClick={onBranch}
-          className="flex items-center gap-2 px-4 py-2 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors font-medium"
+          onClick={handleBranch}
+          disabled={isCreatingBranch}
+          className="flex items-center gap-2 px-4 py-2 text-sm bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <GitBranch size={16} />
-          Branch from here
+          {isCreatingBranch ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Branching...
+            </>
+          ) : (
+            <>
+              <GitBranch size={16} />
+              Branch now
+            </>
+          )}
         </button>
         
         <button

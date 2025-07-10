@@ -231,7 +231,7 @@ const ChatMessageWithBranchHighlight = ({
 };
 
 interface ChatInterfaceProps {
-  onSendMessage: (message: string, branchId?: string) => void;
+  onSendMessage: (message: string, branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => void;
   onCreateBranch: (parentMessageId: string, branchText: string) => Promise<string>;
   messages: Message[];
   branches: ConversationBranch[];
@@ -356,7 +356,17 @@ const ChatInterface = ({
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
     
-    onSendMessage(inputValue, currentBranchId || undefined);
+    // Check if we're in a branch and if this is the first message
+    let branchContext: { selectedText: string; sourceMessageId: string } | undefined;
+    if (currentBranchId) {
+      const currentBranch = branches.find(b => b.id === currentBranchId);
+      if (currentBranch && currentBranch.messages.length === 0 && currentBranch.branchContext) {
+        // This is the first message in the branch, pass the branch context
+        branchContext = currentBranch.branchContext;
+      }
+    }
+    
+    onSendMessage(inputValue, currentBranchId || undefined, branchContext);
     setInputValue('');
   };
 
