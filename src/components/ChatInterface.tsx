@@ -258,39 +258,98 @@ const ChatInterface = ({
   const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const branchTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollTimeoutRef = useRef<number | null>(null);
   const { selection, clearSelection } = useTextSelection();
 
-  // Auto scroll to bottom when new messages arrive
+  // Auto scroll to bottom when new messages arrive - but respect user scrolling
   useEffect(() => {
-    // Only auto-scroll if we're already near the bottom to avoid interfering with user scrolling
+    // Only auto-scroll if user hasn't manually scrolled away and we're loading/generating
     const scrollToBottom = () => {
+      if (userHasScrolled) return; // Don't auto-scroll if user has manually scrolled
+      
       if (currentBranchId && branchMessagesEndRef.current) {
         const container = branchMessagesEndRef.current.parentElement;
         if (container) {
-          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-          if (isNearBottom) {
+          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 150;
+          if (isNearBottom || isLoading) {
             branchMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
           }
         }
       } else if (messagesEndRef.current) {
         const container = messagesEndRef.current.parentElement;
         if (container) {
-          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
-          if (isNearBottom) {
+          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 150;
+          if (isNearBottom || isLoading) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
           }
         }
       }
     };
 
-    // Delay the scroll to ensure content is rendered
-    const timeoutId = setTimeout(scrollToBottom, 100);
-    return () => clearTimeout(timeoutId);
-  }, [messages.length, currentBranchId, isLoading]);
+    // Only auto-scroll during loading or when new messages arrive
+    if (isLoading || messages.length > 0) {
+      const timeoutId = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages.length, currentBranchId, isLoading, userHasScrolled]);
+
+  // Reset user scroll state when new conversation starts or branch changes
+  useEffect(() => {
+    setUserHasScrolled(false);
+  }, [currentBranchId]);
+
+  // Detect user scrolling to disable auto-scroll
+  useEffect(() => {
+    const detectUserScroll = (container: HTMLElement) => {
+      const handleScroll = () => {
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+        
+        // Set a timeout to detect if user has stopped scrolling
+        scrollTimeoutRef.current = window.setTimeout(() => {
+          const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 150;
+          
+          // If user scrolled away from bottom, mark as manually scrolled
+          if (!isAtBottom && isLoading) {
+            setUserHasScrolled(true);
+          }
+          // If user scrolled back to bottom, allow auto-scroll again
+          else if (isAtBottom) {
+            setUserHasScrolled(false);
+          }
+        }, 150);
+      };
+
+      container.addEventListener('scroll', handleScroll, { passive: true });
+      return () => {
+        container.removeEventListener('scroll', handleScroll);
+        if (scrollTimeoutRef.current) {
+          clearTimeout(scrollTimeoutRef.current);
+        }
+      };
+    };
+
+    // Set up scroll detection for main messages
+    if (messagesEndRef.current?.parentElement) {
+      const cleanup1 = detectUserScroll(messagesEndRef.current.parentElement);
+      
+      // Set up scroll detection for branch messages if in branch mode
+      const cleanup2 = currentBranchId && branchMessagesEndRef.current?.parentElement 
+        ? detectUserScroll(branchMessagesEndRef.current.parentElement)
+        : () => {};
+
+      return () => {
+        cleanup1();
+        cleanup2();
+      };
+    }
+  }, [currentBranchId, isLoading]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
