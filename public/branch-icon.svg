@@ -1,0 +1,27 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="branchGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main branch stem -->
+  <circle cx="8" cy="8" r="2.5" fill="url(#branchGradient)"/>
+  <line x1="8" y1="10.5" x2="8" y2="20" stroke="url(#branchGradient)" stroke-width="2" stroke-linecap="round"/>
+  
+  <!-- First branch -->
+  <line x1="8" y1="16" x2="16" y2="12" stroke="url(#branchGradient)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="16" cy="12" r="2.5" fill="url(#branchGradient)"/>
+  
+  <!-- Second branch -->
+  <line x1="8" y1="20" x2="16" y2="24" stroke="url(#branchGradient)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="16" cy="24" r="2.5" fill="url(#branchGradient)"/>
+  
+  <!-- Extended branches -->
+  <line x1="16" y1="12" x2="24" y2="8" stroke="url(#branchGradient)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="24" cy="8" r="2.5" fill="url(#branchGradient)"/>
+  
+  <line x1="16" y1="24" x2="24" y2="28" stroke="url(#branchGradient)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="24" cy="28" r="2.5" fill="url(#branchGradient)"/>
+</svg>

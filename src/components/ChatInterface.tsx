@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings, MapPin } from 'lucide-react';
+import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
 import SelectionPopup from './SelectionPopup';
 import Breadcrumb from './Breadcrumb';
@@ -121,7 +121,7 @@ const ChatMessageWithBranchHighlight = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="font-medium text-gray-900">
-            {isUser ? 'You' : 'ChatGPT'}
+            {isUser ? 'You' : 'Branch AI'}
           </span>
           <span className="text-xs text-gray-500">
             {message.timestamp.toLocaleTimeString()}
@@ -365,13 +365,13 @@ const ChatInterface = ({
             {/* Title Row */}
             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                currentBranchId ? 'bg-green-500' : 'bg-blue-500'
+                currentBranchId ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-green-500 to-green-600'
               }`}>
-                {currentBranchId ? <GitBranch size={16} className="text-white" /> : <MessageCircle size={16} className="text-white" />}
+                <GitBranch size={16} className="text-white" />
               </div>
               <div className="flex-1">
                 <h1 className="text-lg font-semibold text-gray-900">
-                  New Conversation
+                  Branch
                 </h1>
                 {currentBranchId && (
                   <p className="text-sm text-green-700">
@@ -387,10 +387,10 @@ const ChatInterface = ({
               {(branches.length > 0 && !isMiniMapVisible) && (
                 <button
                   onClick={() => setIsMiniMapVisible(true)}
-                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors mr-2"
-                  title="Show Navigation Map"
+                  className="text-green-600 hover:text-green-800 hover:bg-green-50 p-2 rounded-lg transition-colors mr-2"
+                  title="Show Branch Map"
                 >
-                  <MapPin size={20} />
+                  <GitBranch size={20} />
                 </button>
               )}
               
@@ -481,7 +481,7 @@ const ChatInterface = ({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-900">ChatGPT</span>
+                          <span className="font-medium text-gray-900">Branch AI</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
@@ -506,7 +506,7 @@ const ChatInterface = ({
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       onKeyDown={handleKeyDown}
-                      placeholder="Message ChatGPT..."
+                      placeholder="Message Branch AI..."
                       className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
                       rows={1}
                       disabled={isLoading}
@@ -522,7 +522,7 @@ const ChatInterface = ({
                 </form>
                 
                 <div className="mt-2 text-xs text-center text-gray-500">
-                  ChatGPT can make mistakes. Check important info.
+                  Branch AI can make mistakes. Check important info.
                 </div>
               </div>
             )}
@@ -661,7 +661,7 @@ const ChatInterface = ({
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-gray-900">ChatGPT</span>
+                              <span className="font-medium text-gray-900">Branch AI</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>

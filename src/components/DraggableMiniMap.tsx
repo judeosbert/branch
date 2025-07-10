@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Maximize2, MapPin } from 'lucide-react';
+import { X, Maximize2, GitBranch } from 'lucide-react';
 import MiniMap from './MiniMap';
 import type { ConversationBranch } from '../types';
 
@@ -246,8 +246,8 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
         onDragStart={(e) => e.preventDefault()} // Prevent text selection
       >
         <div className="flex items-center gap-2">
-          <MapPin size={16} />
-          <span className="text-sm font-medium">Navigation</span>
+          <GitBranch size={16} />
+          <span className="text-sm font-medium">Branch Map</span>
         </div>
         <div className="flex items-center gap-2">
           <button

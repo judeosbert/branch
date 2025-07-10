@@ -77,7 +77,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
               <Brain size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold">AI Settings</h3>
+              <h3 className="text-lg font-semibold">Branch Settings</h3>
               <p className="text-sm text-blue-100">Configure your AI engine and API key</p>
             </div>
           </div>

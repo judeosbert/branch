@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react';
+import { GitBranch } from 'lucide-react';
 
 interface SamplePrompt {
   title: string;
@@ -8,24 +8,24 @@ interface SamplePrompt {
 
 const samplePrompts: SamplePrompt[] = [
   {
+    title: "Explore Ideas",
+    description: "Brainstorm and branch out concepts",
+    prompt: "Help me brainstorm creative solutions for reducing plastic waste in cities"
+  },
+  {
+    title: "Compare Options",
+    description: "Analyze different paths forward",
+    prompt: "What are the different approaches to learning a new programming language?"
+  },
+  {
+    title: "Deep Dive",
+    description: "Start broad, then branch into specifics",
+    prompt: "Explain artificial intelligence and its main applications"
+  },
+  {
     title: "Creative Writing",
-    description: "Help me write a story",
-    prompt: "Write a short story about a time traveler who accidentally changes history"
-  },
-  {
-    title: "Problem Solving",
-    description: "Analyze and solve problems",
-    prompt: "What are the pros and cons of remote work vs office work?"
-  },
-  {
-    title: "Learning",
-    description: "Explain complex topics",
-    prompt: "Explain quantum computing in simple terms"
-  },
-  {
-    title: "Coding Help",
-    description: "Programming assistance",
-    prompt: "How do I create a REST API in Node.js?"
+    description: "Build stories with branching narratives",
+    prompt: "Write a story about a decision that could change everything"
   }
 ];
 
@@ -40,15 +40,18 @@ const WelcomeScreen = ({ onSelectPrompt }: WelcomeScreenProps) => {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
-              <Sparkles size={32} className="text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+              <GitBranch size={32} className="text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            How can I help you today?
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Welcome to Branch
           </h1>
-          <p className="text-gray-600">
-            Get started by choosing a topic below or type your own message
+          <p className="text-xl text-gray-600 mb-4">
+            Explore conversations that branch and grow
+          </p>
+          <p className="text-gray-500">
+            Start a conversation and discover new paths by selecting text to create branches
           </p>
         </div>
 
@@ -82,7 +85,7 @@ const WelcomeScreen = ({ onSelectPrompt }: WelcomeScreenProps) => {
         {/* Additional Info */}
         <div className="text-sm text-gray-500">
           <p>
-            💡 <strong>Tip:</strong> You can ask me about anything - from creative writing to coding help!
+            🌿 <strong>Tip:</strong> Select any part of my response to create a new branch and explore different directions!
           </p>
         </div>
       </div>
