@@ -54,7 +54,7 @@ const MarkdownMessage = React.forwardRef<HTMLDivElement, MarkdownMessageProps>(
     return (
       <div 
         ref={ref}
-        className={`markdown-content text-gray-800 leading-relaxed select-text mb-4 cursor-text precise-select ${className}`}
+        className={`markdown-content text-gray-800 leading-relaxed select-text mb-2 cursor-text precise-select ${className}`}
         onMouseDown={onMouseDown}
         onMouseUp={onMouseUp}
         onDragStart={onDragStart}

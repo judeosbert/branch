@@ -6,6 +6,7 @@ import Breadcrumb from './Breadcrumb';
 import DraggableMiniMap from './DraggableMiniMap';
 import SettingsPopup from './SettingsPopup';
 import MarkdownMessage from './MarkdownMessage';
+import ResizableColumn from './ResizableColumn';
 import { useTextSelection } from '../hooks/useTextSelection';
 import type { ConversationBranch } from '../types';
 import type { SettingsConfig } from './SettingsPopup';
@@ -110,7 +111,7 @@ const ChatMessageWithBranchHighlight = ({
   }, [isSelecting]);
   
   return (
-    <div className={`flex gap-4 p-4 ${isUser ? 'bg-gray-50' : 'bg-white'} ${isInBranch ? 'border-l-4 border-green-300' : ''}`}>
+    <div className={`flex gap-3 p-3 ${isUser ? 'bg-white' : 'bg-gray-50'} ${isInBranch ? 'border-l-4 border-green-300' : ''}`}>
       {/* Avatar */}
       <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
         isUser ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
@@ -149,11 +150,11 @@ const ChatMessageWithBranchHighlight = ({
           )}
         </div>
         
-        <div className="prose max-w-none">
+        <div className="max-w-none">
           {shouldShowHighlights ? (
             <div 
               ref={contentRef}
-              className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text precise-select"
+              className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-2 cursor-text precise-select"
               dangerouslySetInnerHTML={{ __html: highlightedContent }}
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
@@ -162,7 +163,7 @@ const ChatMessageWithBranchHighlight = ({
           ) : isUser ? (
             <div 
               ref={contentRef}
-              className={`text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text precise-select ${
+              className={`text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-2 cursor-text precise-select ${
                 !isUser && message.content && message.content.length > 0 && message.content.length < 100 
                   ? 'transition-all duration-300 ease-out' 
                   : ''
@@ -189,7 +190,7 @@ const ChatMessageWithBranchHighlight = ({
           )}
           
           {!isUser && message.content === '' && (
-            <div className="flex items-center gap-2 text-gray-500 mb-4">
+            <div className="flex items-center gap-2 text-gray-500 mb-2">
               <div className="flex space-x-1">
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
                 <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
@@ -256,6 +257,7 @@ const ChatInterface = ({
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -264,12 +266,31 @@ const ChatInterface = ({
 
   // Auto scroll to bottom when new messages arrive
   useEffect(() => {
-    if (currentBranchId) {
-      branchMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    } else {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, currentBranchId]);
+    // Only auto-scroll if we're already near the bottom to avoid interfering with user scrolling
+    const scrollToBottom = () => {
+      if (currentBranchId && branchMessagesEndRef.current) {
+        const container = branchMessagesEndRef.current.parentElement;
+        if (container) {
+          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+          if (isNearBottom) {
+            branchMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      } else if (messagesEndRef.current) {
+        const container = messagesEndRef.current.parentElement;
+        if (container) {
+          const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
+          if (isNearBottom) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      }
+    };
+
+    // Delay the scroll to ensure content is rendered
+    const timeoutId = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timeoutId);
+  }, [messages.length, currentBranchId, isLoading]);
 
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
@@ -375,8 +396,86 @@ const ChatInterface = ({
     }
   };
 
+  // Helper functions for column width management
+  const getColumnWidth = useCallback((columnId: string, defaultWidth: number = 384) => {
+    // Check localStorage first, then state, then default
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`column-width-${columnId}`);
+      if (saved) {
+        const parsedWidth = parseInt(saved, 10);
+        if (!isNaN(parsedWidth)) {
+          return parsedWidth;
+        }
+      }
+    }
+    return columnWidths[columnId] || defaultWidth;
+  }, [columnWidths]);
+
+  const updateColumnWidth = useCallback((columnId: string, width: number) => {
+    setColumnWidths(prev => ({
+      ...prev,
+      [columnId]: width
+    }));
+    
+    // Persist to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`column-width-${columnId}`, width.toString());
+    }
+  }, []);
+
+  // Keyboard shortcuts for column resizing
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when not in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Ctrl/Cmd + [ : Narrow current column
+      if ((e.ctrlKey || e.metaKey) && e.key === '[') {
+        e.preventDefault();
+        if (currentBranchId) {
+          const currentWidth = getColumnWidth(`branch-${currentBranchId}`, 384);
+          const newWidth = Math.max(280, currentWidth - 50);
+          updateColumnWidth(`branch-${currentBranchId}`, newWidth);
+        } else {
+          const currentWidth = getColumnWidth('main', 384);
+          const newWidth = Math.max(280, currentWidth - 50);
+          updateColumnWidth('main', newWidth);
+        }
+      }
+
+      // Ctrl/Cmd + ] : Widen current column
+      if ((e.ctrlKey || e.metaKey) && e.key === ']') {
+        e.preventDefault();
+        if (currentBranchId) {
+          const currentWidth = getColumnWidth(`branch-${currentBranchId}`, 384);
+          const newWidth = Math.min(600, currentWidth + 50);
+          updateColumnWidth(`branch-${currentBranchId}`, newWidth);
+        } else {
+          const currentWidth = getColumnWidth('main', 384);
+          const newWidth = Math.min(600, currentWidth + 50);
+          updateColumnWidth('main', newWidth);
+        }
+      }
+
+      // Ctrl/Cmd + 0 : Reset current column to default width
+      if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+        e.preventDefault();
+        if (currentBranchId) {
+          updateColumnWidth(`branch-${currentBranchId}`, 384);
+        } else {
+          updateColumnWidth('main', 384);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [currentBranchId, getColumnWidth, updateColumnWidth]);
+
   return (
-    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-100">
       {/* Top Header Bar with Title, Navigation, and MiniMap */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-start justify-between p-4 gap-4">
@@ -445,15 +544,22 @@ const ChatInterface = ({
       </div>
 
       {/* Main Content Area - Column View */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 relative">
         {/* Horizontal Column Container */}
-        <div className={`flex h-full overflow-y-hidden column-scroll scrollbar-hide ${
+        <div className={`flex h-full column-scroll scrollbar-hide ${
           branches.length > 0 ? 'overflow-x-auto' : 'justify-center'
         }`}>
           {/* Main Chat Column */}
-          <div className={`flex-shrink-0 h-full flex flex-col bg-white column-snap ${
-            branches.length > 0 ? 'w-96 border-r border-gray-200' : 'w-full max-w-4xl'
-          }`}>
+          <ResizableColumn
+            initialWidth={384}
+            minWidth={280}
+            maxWidth={600}
+            className={`h-full flex flex-col bg-white column-snap ${
+              branches.length > 0 ? 'border-r border-gray-200' : ''
+            }`}
+            isLast={!currentBranchId}
+            onWidthChange={(width) => updateColumnWidth('main', width)}
+          >
             {/* Column Header - Only show when branches exist */}
             {branches.length > 0 && (
               <div className="border-b border-gray-200 p-3 bg-gray-50 flex-shrink-0">
@@ -477,48 +583,50 @@ const ChatInterface = ({
                   textareaRef.current?.focus();
                 }} />
               ) : (
-                <div className={`divide-y divide-gray-100 ${branches.length === 0 ? 'pb-20' : ''}`}>
-                  {messages.filter(msg => !msg.branchId).map((message) => (
-                    <div 
-                      key={message.id} 
-                      className="group"
-                    >
-                      <ChatMessageWithBranchHighlight
-                        message={message} 
-                        onCopy={handleCopy}
-                        isInBranch={false}
-                        branches={branches}
-                        currentBranchId={currentBranchId}
-                        onMessageContentMouseUp={handleMessageMouseUp}
-                        onBranchIndicatorClick={handleBranchIndicatorClick}
-                      />
-                    </div>
-                  ))}
-                  {isLoading && !currentBranchId && (
-                    <div className="flex gap-4 p-4 bg-white">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
-                        <Bot size={16} />
+                <div className={`${branches.length === 0 ? 'max-w-4xl mx-auto' : ''}`}>
+                  <div className="divide-y divide-gray-100">
+                    {messages.filter(msg => !msg.branchId).map((message) => (
+                      <div 
+                        key={message.id} 
+                        className="group"
+                      >
+                        <ChatMessageWithBranchHighlight
+                          message={message} 
+                          onCopy={handleCopy}
+                          isInBranch={false}
+                          branches={branches}
+                          currentBranchId={currentBranchId}
+                          onMessageContentMouseUp={handleMessageMouseUp}
+                          onBranchIndicatorClick={handleBranchIndicatorClick}
+                        />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-900">Branch AI</span>
+                    ))}
+                    {isLoading && !currentBranchId && (
+                      <div className="flex gap-3 p-3 bg-gray-50">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
+                          <Bot size={16} />
                         </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-gray-900">Branch AI</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                  <div ref={messagesEndRef} />
+                    )}
+                  </div>
+                  <div ref={messagesEndRef} className="h-20" />
                 </div>
               )}
             </div>
 
             {/* Column Input Area - Show when no current branch is selected */}
             {(!currentBranchId) && (
-              <div className="border-t p-4 flex-shrink-0 bg-white border-gray-200">
+              <div className={`border-t p-4 flex-shrink-0 bg-white border-gray-200 ${branches.length === 0 ? 'max-w-4xl mx-auto w-full' : ''}`}>
                 <form onSubmit={handleSubmit} className="flex gap-2">
                   <div className="flex-1 relative">
                     <textarea
@@ -546,7 +654,7 @@ const ChatInterface = ({
                 </div>
               </div>
             )}
-          </div>
+          </ResizableColumn>
 
           {/* Branch Hierarchy Columns */}
           {currentBranchId && (() => {
@@ -586,11 +694,16 @@ const ChatInterface = ({
               const branchMessages = messages.filter(msg => msg.branchId === branch.id);
 
               columns.push(
-                <div 
-                  key={`branch-${branch.id}`} 
-                  className={`flex-shrink-0 w-96 h-full flex flex-col bg-white column-snap ${
+                <ResizableColumn
+                  key={`branch-${branch.id}`}
+                  initialWidth={getColumnWidth(`branch-${branch.id}`, 384)}
+                  minWidth={280}
+                  maxWidth={600}
+                  className={`h-full flex flex-col bg-white column-snap ${
                     index < branchPath.length - 1 ? 'border-r border-gray-200' : ''
                   }`}
+                  isLast={index === branchPath.length - 1}
+                  onWidthChange={(width) => updateColumnWidth(`branch-${branch.id}`, width)}
                 >
                   {/* Column Header */}
                   <div className={`border-b border-gray-200 p-3 flex-shrink-0 ${
@@ -675,7 +788,7 @@ const ChatInterface = ({
                         </div>
                       ))}
                       {isCurrentBranch && isLoading && (
-                        <div className="flex gap-4 p-4 bg-white">
+                        <div className="flex gap-3 p-3 bg-gray-50">
                           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
                             <Bot size={16} />
                           </div>
@@ -728,7 +841,7 @@ const ChatInterface = ({
                       </div>
                     </div>
                   )}
-                </div>
+                </ResizableColumn>
               );
             });
 
