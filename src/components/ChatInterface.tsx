@@ -373,7 +373,7 @@ const ChatInterface = ({
               </div>
               <div className="flex-1">
                 <h1 className="text-lg font-semibold text-gray-900">
-                  {currentBranchId ? 'Branch Conversation' : 'ChatGPT'}
+                  New Conversation
                 </h1>
                 {currentBranchId && (
                   <p className="text-sm text-green-700">
@@ -385,31 +385,75 @@ const ChatInterface = ({
                 )}
               </div>
               
-              {/* Settings Button - Only show in main chat */}
-              {!currentBranchId && (
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-                  title="Settings"
-                >
-                  <Settings size={20} />
-                </button>
+              {/* Embedded MiniMap in Header */}
+              {(branches.length > 0 || showMiniMapWithIntent) && (
+                <div className="relative mr-4">
+                  {/* MiniMap Container - Positioned absolutely to break out of header height */}
+                  <div className={`absolute top-full right-0 z-50 transition-all duration-300 ${
+                    isMiniMapFullView || showMiniMapWithIntent
+                      ? 'w-96 h-64' 
+                      : 'w-64 h-32'
+                  } ${showMiniMapWithIntent ? 'ring-2 ring-purple-500 ring-opacity-50 shadow-xl' : 'shadow-lg'}`}>
+                    <MiniMap
+                      branches={branches}
+                      currentBranchId={currentBranchId}
+                      onNavigateToBranch={(branchId) => {
+                        onNavigateToBranch(branchId);
+                        if (showMiniMapWithIntent) {
+                          setShowMiniMapWithIntent(false);
+                          setIsMiniMapFullView(false);
+                          
+                          // Scroll to show the selected branch
+                          setTimeout(() => {
+                            const columnContainer = document.querySelector('.column-scroll');
+                            if (columnContainer && branchId) {
+                              const branch = branches.find(b => b.id === branchId);
+                              if (branch) {
+                                const columnWidth = 384; // w-96 = 384px
+                                const scrollLeft = columnWidth * (branch.depth || 1);
+                                columnContainer.scrollTo({
+                                  left: scrollLeft,
+                                  behavior: 'smooth'
+                                });
+                              }
+                            }
+                          }, 100);
+                        }
+                      }}
+                      onToggleFullView={() => {
+                        if (showMiniMapWithIntent) {
+                          setShowMiniMapWithIntent(false);
+                          setIsMiniMapFullView(false);
+                        } else {
+                          setIsMiniMapFullView(!isMiniMapFullView);
+                        }
+                      }}
+                      isFullView={isMiniMapFullView || showMiniMapWithIntent}
+                      totalMessages={messages.filter(m => !m.branchId).length}
+                    />
+                  </div>
+                  {/* Invisible spacer to maintain header layout */}
+                  <div className={`transition-all duration-300 ${
+                    isMiniMapFullView || showMiniMapWithIntent
+                      ? 'w-16 h-8' 
+                      : 'w-12 h-6'
+                  }`}></div>
+                </div>
               )}
               
-              {currentBranchId && (
-                <button
-                  onClick={() => onNavigateToBranch(null)}
-                  className="text-gray-600 hover:text-gray-800 text-sm font-medium hover:bg-gray-200 px-3 py-1 rounded transition-colors"
-                >
-                  Return to Main
-                </button>
-              )}
+              {/* Settings Button - Always show */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                title="Settings"
+              >
+                <Settings size={20} />
+              </button>
             </div>
             
-            {/* Navigation Path Row - Scrollable */}
+            {/* Conversation Path Row - Scrollable */}
             {currentBranchId && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500 whitespace-nowrap">Navigation:</span>
                 <div className="flex-1 overflow-x-auto scrollbar-hide">
                   <div className="flex items-center gap-1 min-w-max">
                     <Breadcrumb 
@@ -426,71 +470,6 @@ const ChatInterface = ({
 
         </div>
       </div>
-
-      {/* Floating MiniMap - Top Right Overlay */}
-      {(branches.length > 0 || showMiniMapWithIntent) && (
-        <div className={`fixed top-20 right-4 z-50 transition-all duration-300 ${
-          isMiniMapFullView || showMiniMapWithIntent
-            ? 'w-96 h-64' 
-            : 'w-48 h-32'
-        } ${showMiniMapWithIntent ? 'ring-4 ring-purple-500 ring-opacity-50 shadow-2xl' : ''}`}>
-          {showMiniMapWithIntent && (
-            <div className="absolute -top-10 left-0 right-0 text-center">
-              <div className="bg-purple-500 text-white px-4 py-2 rounded-t-lg text-sm font-medium shadow-lg">
-                📋 Select a branch to open
-              </div>
-            </div>
-          )}
-          <MiniMap
-            branches={branches}
-            currentBranchId={currentBranchId}
-            onNavigateToBranch={(branchId) => {
-              onNavigateToBranch(branchId);
-              if (showMiniMapWithIntent) {
-                setShowMiniMapWithIntent(false);
-                setIsMiniMapFullView(false);
-                
-                // Scroll to show the selected branch
-                setTimeout(() => {
-                  const columnContainer = document.querySelector('.column-scroll');
-                  if (columnContainer && branchId) {
-                    const branch = branches.find(b => b.id === branchId);
-                    if (branch) {
-                      const columnWidth = 384; // w-96 = 384px
-                      const scrollLeft = columnWidth * (branch.depth || 1);
-                      columnContainer.scrollTo({
-                        left: scrollLeft,
-                        behavior: 'smooth'
-                      });
-                    }
-                  }
-                }, 100);
-              }
-            }}
-            onToggleFullView={() => {
-              if (showMiniMapWithIntent) {
-                setShowMiniMapWithIntent(false);
-                setIsMiniMapFullView(false);
-              } else {
-                setIsMiniMapFullView(!isMiniMapFullView);
-              }
-            }}
-            isFullView={isMiniMapFullView || showMiniMapWithIntent}
-            totalMessages={messages.filter(m => !m.branchId).length}
-          />
-          {showMiniMapWithIntent && (
-            <button
-              onClick={() => {
-                setShowMiniMapWithIntent(false);
-                setIsMiniMapFullView(false);
-              }}
-              className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-b-lg text-sm transition-colors shadow-lg"
-            >
-              ✕ Cancel
-            </button>
-          )}
-        </div>
-      )}
 
       {/* Main Content Area - Column View */}
       <div className="flex-1 overflow-hidden">

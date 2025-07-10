@@ -44,18 +44,24 @@ const MiniMap: React.FC<MiniMapProps> = ({
     const calculateNodes = () => {
       const newNodes: MiniMapNode[] = [];
       
+      // Scale factors for mini vs full view
+      const nodeWidth = isFullView ? 120 : 60;
+      const nodeHeight = isFullView ? 80 : 40;
+      const spacing = isFullView ? 200 : 80;
+      const startY = isFullView ? 50 : 20;
+      
       // Add main chat node
       const mainChatNode: MiniMapNode = {
         id: 'main',
-        x: 50,
-        y: 50,
-        width: 120,
-        height: 80,
+        x: 20,
+        y: startY,
+        width: nodeWidth,
+        height: nodeHeight,
         label: 'Main Chat',
-        summary: 'Original conversation',
+        summary: 'Main conversation',
         branchText: '',
         depth: 0,
-        isActive: !currentBranchId,
+        isActive: currentBranchId === null,
         isMainChat: true,
         messageCount: totalMessages,
         children: branches.filter(b => !b.parentBranchId).map(b => b.id),
@@ -92,8 +98,8 @@ const MiniMap: React.FC<MiniMapProps> = ({
           const branchesAtLevel = branchLevels[depth];
           
           branchesAtLevel.forEach((branch, indexAtLevel) => {
-            const x = 50 + depth * 200;
-            const y = 50 + indexAtLevel * 120;
+            const x = 20 + spacing + depth * spacing;
+            const y = startY + indexAtLevel * (nodeHeight + 20);
             
             const branchIndex = branches.findIndex(b => b.id === branch.id);
             
@@ -101,8 +107,8 @@ const MiniMap: React.FC<MiniMapProps> = ({
               id: branch.id,
               x,
               y,
-              width: 120,
-              height: 80,
+              width: nodeWidth,
+              height: nodeHeight,
               label: `Branch ${branchIndex + 1}`,
               summary: branch.branchText.length > 40 ? branch.branchText.substring(0, 40) + '...' : branch.branchText,
               branchText: branch.branchText,
@@ -126,7 +132,7 @@ const MiniMap: React.FC<MiniMapProps> = ({
     };
     
     calculateNodes();
-  }, [branches, currentBranchId, totalMessages]);
+  }, [branches, currentBranchId, totalMessages, isFullView]);
 
   // Generate SVG path for connections
   const generatePath = (fromNode: MiniMapNode, toNode: MiniMapNode): string => {
@@ -148,7 +154,13 @@ const MiniMap: React.FC<MiniMapProps> = ({
     onNavigateToBranch(nodeId === 'main' ? null : nodeId);
   };
 
-  const renderNode = (node: MiniMapNode) => (
+  const renderNode = (node: MiniMapNode) => {
+    const iconSize = isFullView ? 16 : 10;
+    const labelFontSize = isFullView ? 12 : 8;
+    const summaryFontSize = isFullView ? 10 : 6;
+    const messageCountFontSize = isFullView ? 10 : 6;
+    
+    return (
     <g key={node.id}>
       {/* Node Rectangle */}
       <rect
@@ -172,61 +184,77 @@ const MiniMap: React.FC<MiniMapProps> = ({
       <foreignObject
         x={node.x + 8}
         y={node.y + 8}
-        width={20}
-        height={20}
+        width={isFullView ? 20 : 12}
+        height={isFullView ? 20 : 12}
       >
-        <div className="flex items-center justify-center w-5 h-5">
+        <div className={`flex items-center justify-center ${isFullView ? 'w-5 h-5' : 'w-3 h-3'}`}>
           {node.isMainChat ? (
-            <MessageCircle size={16} className="text-white" />
+            <MessageCircle size={iconSize} className="text-white" />
           ) : (
-            <GitBranch size={16} className="text-white" />
+            <GitBranch size={iconSize} className="text-white" />
           )}
         </div>
       </foreignObject>
       
       {/* Node Label */}
       <text
-        x={node.x + 32}
-        y={node.y + 22}
+        x={node.x + (isFullView ? 32 : 20)}
+        y={node.y + (isFullView ? 22 : 16)}
         fill={node.isActive ? 'white' : node.isMainChat ? 'white' : '#374151'}
-        fontSize="12"
+        fontSize={labelFontSize}
         fontWeight="600"
         className="pointer-events-none select-none"
       >
-        {node.label}
+        {isFullView ? node.label : node.label.substring(0, 8)}
       </text>
       
-      {/* Node Summary */}
-      <text
-        x={node.x + 8}
-        y={node.y + 40}
-        fill={node.isActive ? 'white' : node.isMainChat ? 'white' : '#6b7280'}
-        fontSize="10"
-        className="pointer-events-none select-none"
-      >
-        <tspan x={node.x + 8} dy="0">
-          {node.summary.substring(0, 18)}
-        </tspan>
-        {node.summary.length > 18 && (
-          <tspan x={node.x + 8} dy="12">
-            {node.summary.substring(18, 36)}
+      {/* Node Summary - Only show in full view or shortened in mini */}
+      {isFullView ? (
+        <text
+          x={node.x + 8}
+          y={node.y + 40}
+          fill={node.isActive ? 'white' : node.isMainChat ? 'white' : '#6b7280'}
+          fontSize={summaryFontSize}
+          className="pointer-events-none select-none"
+        >
+          <tspan x={node.x + 8} dy="0">
+            {node.summary.substring(0, 18)}
           </tspan>
-        )}
-      </text>
+          {node.summary.length > 18 && (
+            <tspan x={node.x + 8} dy="12">
+              {node.summary.substring(18, 36)}
+            </tspan>
+          )}
+        </text>
+      ) : (
+        <text
+          x={node.x + 4}
+          y={node.y + node.height - 8}
+          fill={node.isActive ? 'white' : node.isMainChat ? 'white' : '#6b7280'}
+          fontSize={summaryFontSize}
+          className="pointer-events-none select-none"
+        >
+          {node.summary.substring(0, 10)}...
+        </text>
+      )}
       
       {/* Message Count */}
       <text
         x={node.x + node.width - 8}
         y={node.y + node.height - 8}
         fill={node.isActive ? 'white' : node.isMainChat ? 'white' : '#9ca3af'}
-        fontSize="10"
+        fontSize={messageCountFontSize}
         textAnchor="end"
         className="pointer-events-none select-none"
       >
-        {node.messageCount} msg{node.messageCount !== 1 ? 's' : ''}
+        {isFullView 
+          ? `${node.messageCount} msg${node.messageCount !== 1 ? 's' : ''}`
+          : node.messageCount
+        }
       </text>
     </g>
-  );
+    );
+  };
 
   const renderConnections = () => {
     const connections: React.ReactElement[] = [];
@@ -254,8 +282,12 @@ const MiniMap: React.FC<MiniMapProps> = ({
     return connections;
   };
 
-  const svgWidth = Math.max(400, ...nodes.map(n => n.x + n.width + 50));
-  const svgHeight = Math.max(300, ...nodes.map(n => n.y + n.height + 50));
+  const svgWidth = isFullView 
+    ? Math.max(400, ...nodes.map(n => n.x + n.width + 50))
+    : 240;
+  const svgHeight = isFullView 
+    ? Math.max(300, ...nodes.map(n => n.y + n.height + 50))
+    : 120;
 
   if (isFullView) {
     return (
