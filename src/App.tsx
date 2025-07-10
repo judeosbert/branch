@@ -43,6 +43,48 @@ function App() {
     setMessages(chatMessages);
   }, [settings]); // Re-run when settings change
 
+  // Helper function to get relevant conversation history for a branch
+  const getRelevantHistory = useCallback((branchId?: string | null) => {
+    if (!branchId) {
+      // Main conversation - return all main messages
+      return messages.filter(msg => !msg.branchId).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp
+      }));
+    }
+
+    // Find the branch and build full history
+    const branch = branches.find(b => b.id === branchId);
+    if (!branch) return [];
+
+    const history: Array<{ id: string; content: string; sender: 'user' | 'assistant'; timestamp: Date }> = [];
+    
+    // Get messages up to the branch point
+    const parentMessage = messages.find(msg => msg.id === branch.parentMessageId);
+    if (parentMessage) {
+      const parentIndex = messages.findIndex(msg => msg.id === parentMessage.id);
+      const mainMessages = messages.slice(0, parentIndex + 1).filter(msg => !msg.branchId);
+      history.push(...mainMessages.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp
+      })));
+    }
+    
+    // Add branch-specific messages
+    history.push(...branch.messages.map(msg => ({
+      id: msg.id,
+      content: msg.content,
+      sender: msg.sender,
+      timestamp: msg.timestamp
+    })));
+    
+    return history;
+  }, [messages, branches]);
+
   const handleSendMessage = useCallback(async (messageContent: string, branchId?: string) => {
     if (isLoading) return;
     
@@ -58,17 +100,36 @@ function App() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     
+    // Create AI message placeholder for streaming
+    const aiMessageId = `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const aiMessage: Message = {
+      id: aiMessageId,
+      content: '',
+      sender: 'assistant',
+      timestamp: new Date(),
+      branchId: branchId || currentBranchId || undefined,
+    };
+    
+    setMessages(prev => [...prev, aiMessage]);
+    
     try {
-      const response = await aiService.sendMessage(messageContent, undefined, branchId);
-      const aiMessage: Message = {
-        id: response.id,
-        content: response.content,
-        sender: response.sender,
-        timestamp: response.timestamp,
-        branchId: branchId || currentBranchId || undefined,
-      };
+      // Build conversation history for the current branch
+      const relevantHistory = getRelevantHistory(branchId || currentBranchId);
       
-      setMessages(prev => [...prev, aiMessage]);
+      // Stream the response
+      const stream = aiService.sendMessageStream(messageContent, relevantHistory);
+      let accumulatedContent = '';
+      
+      for await (const chunk of stream) {
+        accumulatedContent += chunk;
+        
+        // Update the AI message content with accumulated response
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessageId 
+            ? { ...msg, content: accumulatedContent }
+            : msg
+        ));
+      }
       
       // Update branch messages if we're in a branch
       if (branchId || currentBranchId) {
@@ -79,20 +140,8 @@ function App() {
               ...branch,
               messages: [
                 ...branch.messages,
-                {
-                  id: userMessage.id,
-                  content: userMessage.content,
-                  sender: userMessage.sender,
-                  timestamp: userMessage.timestamp,
-                  branchId: targetBranchId,
-                },
-                {
-                  id: aiMessage.id,
-                  content: aiMessage.content,
-                  sender: aiMessage.sender,
-                  timestamp: aiMessage.timestamp,
-                  branchId: targetBranchId,
-                }
+                userMessage,
+                { ...aiMessage, content: accumulatedContent }
               ]
             };
           }
@@ -100,22 +149,18 @@ function App() {
         }));
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('AI service error:', error);
       
-      // Show error message to user
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your settings and try again.`,
-        sender: 'assistant',
-        timestamp: new Date(),
-        branchId: branchId || currentBranchId || undefined,
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      // Update the message to show error
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { ...msg, content: 'Sorry, I encountered an error. Please try again.' }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, currentBranchId, aiService]);
+  }, [isLoading, currentBranchId, aiService, getRelevantHistory]);
 
   const handleCreateBranch = useCallback((parentMessageId: string, branchText: string) => {
     const branchId = uuidv4();

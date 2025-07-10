@@ -161,12 +161,26 @@ const ChatMessageWithBranchHighlight = ({
           ) : (
             <div 
               ref={contentRef}
-              className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text precise-select"
+              className={`text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text precise-select ${
+                !isUser && message.content && message.content.length > 0 && message.content.length < 100 
+                  ? 'transition-all duration-300 ease-out' 
+                  : ''
+              }`}
               onMouseDown={handleMouseDown}
               onMouseUp={handleMouseUp}
               onDragStart={handleDragStart}
             >
-              {message.content}
+              {message.content || (!isUser && message.content === '' ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="flex space-x-1">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-sm">AI is typing...</span>
+                  <span className="animate-pulse text-lg font-bold">|</span>
+                </div>
+              ) : message.content)}
             </div>
           )}
         </div>
