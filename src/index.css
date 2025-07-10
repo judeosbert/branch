@@ -178,27 +178,45 @@ body {
   animation: pulse 1.5s ease-in-out infinite;
 }
 
-/* Markdown content styling */
+/* Markdown content styling - Direct HTML elements */
 .markdown-content {
   @apply text-gray-800 leading-relaxed;
 }
 
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5,
+.markdown-content h1 {
+  @apply text-2xl font-bold mt-6 mb-4 text-gray-900 border-b border-gray-200 pb-2;
+}
+
+.markdown-content h2 {
+  @apply text-xl font-semibold mt-5 mb-3 text-gray-900;
+}
+
+.markdown-content h3 {
+  @apply text-lg font-medium mt-4 mb-2 text-gray-900;
+}
+
+.markdown-content h4 {
+  @apply text-base font-medium mt-3 mb-2 text-gray-900;
+}
+
+.markdown-content h5 {
+  @apply text-sm font-medium mt-3 mb-2 text-gray-900;
+}
+
 .markdown-content h6 {
-  @apply text-gray-900 font-semibold;
+  @apply text-xs font-medium mt-3 mb-2 text-gray-900;
 }
 
 .markdown-content p {
   @apply mb-4 last:mb-0;
 }
 
-.markdown-content ul,
+.markdown-content ul {
+  @apply list-disc list-inside mb-4 space-y-1 ml-4;
+}
+
 .markdown-content ol {
-  @apply mb-4 space-y-1;
+  @apply list-decimal list-inside mb-4 space-y-1 ml-4;
 }
 
 .markdown-content li {
@@ -206,7 +224,7 @@ body {
 }
 
 .markdown-content blockquote {
-  @apply border-l-4 border-blue-500 pl-4 py-2 mb-4 bg-blue-50 text-gray-700 italic;
+  @apply border-l-4 border-blue-500 pl-4 py-2 mb-4 bg-blue-50 text-gray-700 italic rounded-r;
 }
 
 .markdown-content a {
@@ -218,7 +236,11 @@ body {
 }
 
 .markdown-content pre {
-  @apply mb-4 rounded-lg overflow-x-auto;
+  @apply mb-4 rounded-lg overflow-x-auto bg-gray-900 text-gray-100 p-4;
+}
+
+.markdown-content pre code {
+  @apply bg-transparent text-gray-100 p-0;
 }
 
 .markdown-content table {
@@ -243,4 +265,8 @@ body {
 
 .markdown-content em {
   @apply italic text-gray-700;
+}
+
+.markdown-content img {
+  @apply max-w-full h-auto rounded-lg my-4;
 }
