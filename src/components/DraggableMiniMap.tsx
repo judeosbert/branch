@@ -23,16 +23,64 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
   onClose,
   totalMessages
 }) => {
-  const [position, setPosition] = useState<Position>({ x: 20, y: 80 });
+  // Get default bottom-right position
+  const getDefaultPosition = useCallback((): Position => {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    return {
+      x: windowWidth - 220, // 200px width + 20px margin
+      y: windowHeight - 220  // 200px height + 20px margin
+    };
+  }, []);
+
+  // Load saved position or use default
+  const getSavedPosition = useCallback((): Position => {
+    try {
+      const saved = localStorage.getItem('minimap-position');
+      if (saved) {
+        const position = JSON.parse(saved);
+        // Validate position is still within bounds
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        if (position.x >= 0 && position.x <= windowWidth - 200 && 
+            position.y >= 80 && position.y <= windowHeight - 200) {
+          return position;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load saved MiniMap position:', error);
+    }
+    return getDefaultPosition();
+  }, [getDefaultPosition]);
+
+  const [position, setPosition] = useState<Position>(getSavedPosition);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState<Position>({ x: 0, y: 0 });
   const [isExpanded, setIsExpanded] = useState(false);
   const miniMapRef = useRef<HTMLDivElement>(null);
+  
+  // Use ref for immediate position updates during drag to avoid React render delays
+  const currentPositionRef = useRef<Position>(position);
+  const animationFrameRef = useRef<number | null>(null);
+
+  // Update ref when position state changes
+  useEffect(() => {
+    currentPositionRef.current = position;
+  }, [position]);
 
   // Size constants
   const miniSize = 200; // Square 200x200
   const expandedSize = 400; // Square 400x400
   const snapThreshold = 50; // Distance from edge to trigger snap
+
+  // Save position to localStorage
+  const savePosition = useCallback((pos: Position) => {
+    try {
+      localStorage.setItem('minimap-position', JSON.stringify(pos));
+    } catch (error) {
+      console.warn('Failed to save MiniMap position:', error);
+    }
+  }, []);
 
   // Corner snapping logic
   const snapToCorner = useCallback((x: number, y: number): Position => {
@@ -88,19 +136,32 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
     setIsDragging(true);
   };
 
-  // Handle mouse move for dragging
+  // Optimized drag handling with immediate DOM updates
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging || !miniMapRef.current) return;
       
-      // Prevent text selection during drag
       e.preventDefault();
       
       const newX = e.clientX - dragOffset.x;
       const newY = e.clientY - dragOffset.y;
       
-      // Update position immediately for smooth dragging
-      setPosition({ x: newX, y: newY });
+      // Update DOM directly for immediate visual feedback
+      const newPosition = { x: newX, y: newY };
+      currentPositionRef.current = newPosition;
+      
+      // Cancel any pending animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      
+      // Use requestAnimationFrame for smooth visual updates
+      animationFrameRef.current = requestAnimationFrame(() => {
+        if (miniMapRef.current) {
+          miniMapRef.current.style.left = `${newX}px`;
+          miniMapRef.current.style.top = `${newY}px`;
+        }
+      });
     };
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -108,8 +169,16 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
       
       e.preventDefault();
       
-      // Snap to corner on release
-      setPosition(prev => snapToCorner(prev.x, prev.y));
+      // Cancel any pending animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      
+      // Snap to corner and update React state
+      const snappedPosition = snapToCorner(currentPositionRef.current.x, currentPositionRef.current.y);
+      setPosition(snappedPosition);
+      savePosition(snappedPosition);
       setIsDragging(false);
     };
 
@@ -121,20 +190,29 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
       // Disable text selection while dragging
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
+      (document.body.style as any).mozUserSelect = 'none';
     } else {
       // Re-enable text selection
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
+      (document.body.style as any).mozUserSelect = '';
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      
+      // Cancel any pending animation frame
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      
       // Ensure text selection is re-enabled on cleanup
       document.body.style.userSelect = '';
       document.body.style.webkitUserSelect = '';
+      (document.body.style as any).mozUserSelect = '';
     };
-  }, [isDragging, dragOffset, snapToCorner]);
+  }, [isDragging, dragOffset, snapToCorner, savePosition]);
 
   // Handle window resize
   useEffect(() => {
