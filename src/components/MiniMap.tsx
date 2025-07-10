@@ -312,13 +312,13 @@ const MiniMap: React.FC<MiniMapProps> = ({
   }
 
   return (
-    <div className="fixed top-4 right-4 z-40 animate-slide-in-right">
-      <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+    <div className="relative w-full h-full">
+      <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden h-full flex flex-col">
         {/* Mini Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-2 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-2 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2">
             <Map size={14} />
-            <span className="text-sm font-medium">Map</span>
+            <span className="text-sm font-medium">Navigation</span>
           </div>
           <button
             onClick={onToggleFullView}
@@ -329,7 +329,7 @@ const MiniMap: React.FC<MiniMapProps> = ({
         </div>
         
         {/* Mini Graph */}
-        <div className="p-2 w-64 h-48 overflow-hidden">
+        <div className="p-2 flex-1 overflow-hidden">
           <svg
             width="100%"
             height="100%"
