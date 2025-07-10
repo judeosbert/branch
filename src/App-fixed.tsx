@@ -43,6 +43,52 @@ function App() {
     setMessages(chatMessages);
   }, [settings]); // Re-run when settings change
 
+  // Helper to get conversation history for AI context
+  const getRelevantHistory = useCallback((branchId: string | null) => {
+    if (!branchId) {
+      // Main conversation - return all main messages
+      return messages.filter(msg => !msg.branchId).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp
+      }));
+    } else {
+      // Branch conversation - return relevant history including branch path
+      const branch = branches.find(b => b.id === branchId);
+      if (!branch) return [];
+      
+      // Build the branch path
+      const buildBranchPath = (currentBranchId: string): string[] => {
+        const currentBranch = branches.find(b => b.id === currentBranchId);
+        if (!currentBranch) return [];
+        
+        if (currentBranch.parentBranchId) {
+          return [...buildBranchPath(currentBranch.parentBranchId), currentBranchId];
+        }
+        return [currentBranchId];
+      };
+      
+      const branchPath = buildBranchPath(branchId);
+      
+      // Get messages up to the branch point
+      const parentIndex = messages.findIndex(msg => msg.id === branch.parentMessageId);
+      const mainHistory = messages.slice(0, parentIndex + 1).filter(msg => !msg.branchId);
+      
+      // Get messages from the branch path
+      const branchHistory = messages.filter(msg => 
+        msg.branchId && branchPath.includes(msg.branchId)
+      );
+      
+      return [...mainHistory, ...branchHistory].map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp
+      }));
+    }
+  }, [messages, branches]);
+
   const handleSendMessage = useCallback(async (messageContent: string, branchId?: string) => {
     if (isLoading) return;
     
@@ -58,17 +104,36 @@ function App() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     
+    // Create AI message placeholder for streaming
+    const aiMessageId = `ai-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const aiMessage: Message = {
+      id: aiMessageId,
+      content: '',
+      sender: 'assistant',
+      timestamp: new Date(),
+      branchId: branchId || currentBranchId || undefined,
+    };
+    
+    setMessages(prev => [...prev, aiMessage]);
+    
     try {
-      const response = await aiService.sendMessage(messageContent, undefined, branchId);
-      const aiMessage: Message = {
-        id: response.id,
-        content: response.content,
-        sender: response.sender,
-        timestamp: response.timestamp,
-        branchId: branchId || currentBranchId || undefined,
-      };
+      // Build conversation history for the current branch
+      const relevantHistory = getRelevantHistory(branchId || currentBranchId);
       
-      setMessages(prev => [...prev, aiMessage]);
+      // Stream the response
+      const stream = aiService.sendMessageStream(messageContent, relevantHistory);
+      let accumulatedContent = '';
+      
+      for await (const chunk of stream) {
+        accumulatedContent += chunk;
+        
+        // Update the AI message content with accumulated response
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMessageId 
+            ? { ...msg, content: accumulatedContent }
+            : msg
+        ));
+      }
       
       // Update branch messages if we're in a branch
       if (branchId || currentBranchId) {
@@ -79,20 +144,8 @@ function App() {
               ...branch,
               messages: [
                 ...branch.messages,
-                {
-                  id: userMessage.id,
-                  content: userMessage.content,
-                  sender: userMessage.sender,
-                  timestamp: userMessage.timestamp,
-                  branchId: targetBranchId,
-                },
-                {
-                  id: aiMessage.id,
-                  content: aiMessage.content,
-                  sender: aiMessage.sender,
-                  timestamp: aiMessage.timestamp,
-                  branchId: targetBranchId,
-                }
+                userMessage,
+                { ...aiMessage, content: accumulatedContent }
               ]
             };
           }
@@ -100,24 +153,65 @@ function App() {
         }));
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('AI service error:', error);
       
-      // Show error message to user
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your settings and try again.`,
-        sender: 'assistant',
-        timestamp: new Date(),
-        branchId: branchId || currentBranchId || undefined,
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
+      // Update the message to show error
+      setMessages(prev => prev.map(msg => 
+        msg.id === aiMessageId 
+          ? { ...msg, content: 'Sorry, I encountered an error. Please try again.' }
+          : msg
+      ));
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, currentBranchId, aiService]);
+  }, [isLoading, currentBranchId, aiService, getRelevantHistory]);
 
-  const handleCreateBranch = useCallback((parentMessageId: string, branchText: string) => {
+  // Function to generate a meaningful branch title using AI
+  const generateBranchTitle = useCallback(async (branchText: string, parentMessageId: string): Promise<string> => {
+    try {
+      // Find the parent message
+      const parentMessage = messages.find(m => m.id === parentMessageId);
+      if (!parentMessage) return `Branch: ${branchText.substring(0, 30)}...`;
+
+      // Get the conversation history up to this point
+      const getRelevantHistory = (branchId: string | null) => {
+        if (!branchId) {
+          // Main conversation - get all messages without branchId up to parent
+          const parentIndex = messages.findIndex(m => m.id === parentMessageId);
+          return messages.slice(0, parentIndex + 1)
+            .filter(m => !m.branchId)
+            .map(m => ({
+              id: m.id,
+              content: m.content,
+              sender: m.sender,
+              timestamp: m.timestamp
+            }));
+        }
+        // Get messages in branch path - simplified for title generation
+        return messages.filter(m => m.branchId === branchId || !m.branchId)
+          .map(m => ({
+            id: m.id,
+            content: m.content,
+            sender: m.sender,
+            timestamp: m.timestamp
+          }));
+      };
+
+      const history = getRelevantHistory(parentMessage.branchId || null);
+      
+      // Use AI service to generate title
+      const title = await aiService.generateBranchTitle(branchText, history);
+      
+      return title;
+    } catch (error) {
+      console.error('Error generating branch title:', error);
+      // Fallback to simple title
+      const cleanText = branchText.trim().substring(0, 40);
+      return `Branch: ${cleanText}${branchText.length > 40 ? '...' : ''}`;
+    }
+  }, [messages, aiService]);
+
+  const handleCreateBranch = useCallback(async (parentMessageId: string, branchText: string) => {
     const branchId = uuidv4();
     
     // ==================================================================================
@@ -153,10 +247,13 @@ function App() {
     // ==================================================================================
     // END CRITICAL CORE BRANCHING LOGIC
     // ==================================================================================
+
+    // Generate AI-powered title
+    const branchTitle = await generateBranchTitle(branchText, parentMessageId);
     
     const newBranch: ConversationBranch = {
       id: branchId,
-      name: `Branch from "${branchText.substring(0, 20)}..."`,
+      name: branchTitle,
       parentMessageId,
       parentBranchId,
       branchText,
@@ -167,7 +264,7 @@ function App() {
     
     setBranches(prev => [...prev, newBranch]);
     return branchId;
-  }, [currentBranchId, branches, messages]);
+  }, [currentBranchId, branches, messages, generateBranchTitle]);
 
   const handleNavigateToBranch = useCallback((branchId: string | null) => {
     setCurrentBranchId(branchId);

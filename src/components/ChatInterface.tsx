@@ -215,7 +215,7 @@ const ChatMessageWithBranchHighlight = ({
 
 interface ChatInterfaceProps {
   onSendMessage: (message: string, branchId?: string) => void;
-  onCreateBranch: (parentMessageId: string, branchText: string) => string;
+  onCreateBranch: (parentMessageId: string, branchText: string) => Promise<string>;
   messages: Message[];
   branches: ConversationBranch[];
   currentBranchId: string | null;
@@ -278,12 +278,16 @@ const ChatInterface = ({
   };
 
   // Handle branch creation
-  const handleBranch = () => {
+  const handleBranch = async () => {
     if (selection && selectedMessageId) {
-      const branchId = onCreateBranch(selectedMessageId, selection.text);
-      onNavigateToBranch(branchId);
-      clearSelection();
-      setSelectedMessageId(null);
+      try {
+        const branchId = await onCreateBranch(selectedMessageId, selection.text);
+        onNavigateToBranch(branchId);
+        clearSelection();
+        setSelectedMessageId(null);
+      } catch (error) {
+        console.error('Error creating branch:', error);
+      }
     }
   };
 
