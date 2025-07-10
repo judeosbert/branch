@@ -193,5 +193,111 @@ export class AIService {
   getMessageHistory(): AIMessage[] {
     // Return empty for now - in a real app, this might load from localStorage or server
     return [];
+ }
+
+  // Generate a concise branch title based on highlighted text and conversation context
+  async generateBranchTitle(
+    highlightedText: string, 
+    conversationHistory: AIMessage[] = []
+  ): Promise<string> {
+    if (this.settings.aiEngine === 'mock') {
+      return this.generateMockBranchTitle(highlightedText);
+    }
+
+    if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
+      return this.generateMockBranchTitle(highlightedText);
+    }
+
+    try {
+      return await this.generateOpenAIBranchTitle(highlightedText, conversationHistory);
+    } catch (error) {
+      console.error('OpenAI API error for branch title, using fallback:', error);
+      return this.generateMockBranchTitle(highlightedText);
+    }
+  }
+
+  private async generateOpenAIBranchTitle(
+    highlightedText: string, 
+    conversationHistory: AIMessage[]
+  ): Promise<string> {
+    const model = this.getOpenAIModel();
+    
+    // Convert conversation history to OpenAI format
+    const messages: ConversationMessage[] = conversationHistory.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    }));
+
+    // Add the title generation prompt
+    messages.push({
+      role: 'user',
+      content: `Based on our conversation above and this highlighted text: "${highlightedText}"
+
+Create a very short, descriptive title (max 4-6 words) that captures what the user wants to explore in this branch. The title should indicate the specific aspect, question, or direction they're interested in.
+
+Examples:
+- "machine learning algorithms" → "ML Algorithm Types"
+- "how does backpropagation work" → "How Backpropagation Works"
+- "pros and cons of React" → "React Pros & Cons"
+- "alternative to databases" → "Database Alternatives"
+- "example of API design" → "API Design Examples"
+
+Return only the title, no explanation.`
+    });
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.settings.openaiApiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_tokens: 20,
+        temperature: 0.3,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    const title = data.choices?.[0]?.message?.content?.trim() || '';
+    
+    // Clean up the title and ensure it's not too long
+    const cleanTitle = title.replace(/["""''']/g, '').trim();
+    if (cleanTitle.length > 40) {
+      return cleanTitle.substring(0, 37) + '...';
+    }
+    
+    return cleanTitle || this.generateMockBranchTitle(highlightedText);
+  }
+
+  private generateMockBranchTitle(highlightedText: string): string {
+    const text = highlightedText.trim().substring(0, 50);
+    
+    // Simple pattern matching for mock service
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes('how') || lowerText.includes('what') || lowerText.includes('why')) {
+      return `Q: ${text.substring(0, 30)}...`;
+    }
+    if (lowerText.includes('example') || lowerText.includes('instance')) {
+      return `Examples: ${text.substring(0, 25)}...`;
+    }
+    if (lowerText.includes('compare') || lowerText.includes('vs') || lowerText.includes('versus')) {
+      return `Compare: ${text.substring(0, 25)}...`;
+    }
+    if (lowerText.includes('alternative') || lowerText.includes('different')) {
+      return `Alternative: ${text.substring(0, 22)}...`;
+    }
+    
+    // Default fallback
+    const words = text.split(' ').slice(0, 4).join(' ');
+    return `Branch: ${words}${text.split(' ').length > 4 ? '...' : ''}`;
   }
 }
