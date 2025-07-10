@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle } from 'lucide-react';
+import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
 import SelectionPopup from './SelectionPopup';
 import Breadcrumb from './Breadcrumb';
 import MiniMap from './MiniMap';
+import SettingsPopup from './SettingsPopup';
 import { useTextSelection } from '../hooks/useTextSelection';
 import type { ConversationBranch } from '../types';
+import type { SettingsConfig } from './SettingsPopup';
 
 interface Message {
   id: string;
@@ -205,6 +207,8 @@ interface ChatInterfaceProps {
   currentBranchId: string | null;
   onNavigateToBranch: (branchId: string | null) => void;
   isLoading: boolean;
+  settings: SettingsConfig;
+  onSettingsChange: (settings: SettingsConfig) => void;
 }
 
 const ChatInterface = ({ 
@@ -214,12 +218,15 @@ const ChatInterface = ({
   branches,
   currentBranchId,
   onNavigateToBranch,
-  isLoading 
+  isLoading,
+  settings,
+  onSettingsChange
 }: ChatInterfaceProps) => {
   const [inputValue, setInputValue] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [isMiniMapFullView, setIsMiniMapFullView] = useState(false);
   const [showMiniMapWithIntent, setShowMiniMapWithIntent] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -363,6 +370,18 @@ const ChatInterface = ({
                   </p>
                 )}
               </div>
+              
+              {/* Settings Button - Only show in main chat */}
+              {!currentBranchId && (
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                  title="Settings"
+                >
+                  <Settings size={20} />
+                </button>
+              )}
+              
               {currentBranchId && (
                 <button
                   onClick={() => onNavigateToBranch(null)}
@@ -639,6 +658,31 @@ const ChatInterface = ({
                   {/* Branch Messages */}
                   <div className="flex-1 overflow-y-auto">
                     <div className="divide-y divide-gray-100">
+                      {/* Branch Origin Indicator - Show selected text that created this branch */}
+                      {branchMessages.length === 0 && (
+                        <div className="p-4 bg-green-50 border-l-4 border-green-400">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                              <GitBranch size={14} className="text-green-600" />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-sm font-medium text-green-800">Branch Origin</span>
+                                <span className="text-xs text-green-600 bg-green-200 px-2 py-0.5 rounded-full">
+                                  Selected Text
+                                </span>
+                              </div>
+                              <div className="text-sm text-green-700 bg-white border border-green-200 rounded-lg p-3 italic">
+                                "{branch.branchText}"
+                              </div>
+                              <p className="text-xs text-green-600 mt-2">
+                                This branch was created from the text above. Start typing below to continue the conversation in this context.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       {branchMessages.map((message) => (
                         <div 
                           key={message.id} 
@@ -739,6 +783,14 @@ const ChatInterface = ({
           }}
         />
       )}
+      
+      {/* Settings Popup */}
+      <SettingsPopup
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={onSettingsChange}
+        currentSettings={settings}
+      />
     </div>
   );
 };

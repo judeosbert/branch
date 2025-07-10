@@ -84,20 +84,6 @@ const MiniMap: React.FC<MiniMapProps> = ({
         branchLevels[actualDepth].push(branch);
       });
       
-      console.log('🗺️ MINIMAP NODE POSITIONING:', {
-        totalBranches: branches.length,
-        branchLevels: Object.keys(branchLevels).reduce((acc, depth) => {
-          acc[depth] = branchLevels[Number(depth)].map(b => ({
-            id: b.id,
-            branchText: b.branchText.substring(0, 20) + '...',
-            parentBranchId: b.parentBranchId,
-            depth: b.depth
-          }));
-          return acc;
-        }, {} as any),
-        currentBranchId
-      });
-      
       // Add branch nodes level by level
       Object.keys(branchLevels)
         .map(Number)

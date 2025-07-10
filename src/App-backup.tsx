@@ -20,8 +20,24 @@ function App() {
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<SettingsConfig>(() => SettingsService.loadSettings());
-
+  
   // Create AI service instance with current settings
+  const aiService = new AIService(settings);
+
+  // Handle settings updates
+  const handleSettingsChange = useCallback((newSettings: SettingsConfig) => {
+    setSettings(newSettings);
+    SettingsService.saveSettings(newSettings);
+  }, []);
+
+function App() {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [branches, setBranches] = useState<ConversationBranch[]>([]);
+  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [settings, setSettings] = useState<SettingsConfig>(() => SettingsService.loadSettings());
+
+  // Initialize AI service based on settings
   const aiService = new AIService(settings);
 
   // Handle settings updates
@@ -101,21 +117,10 @@ function App() {
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      
-      // Show error message to user
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
-        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please check your settings and try again.`,
-        sender: 'assistant',
-        timestamp: new Date(),
-        branchId: branchId || currentBranchId || undefined,
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, currentBranchId, aiService]);
+  }, [isLoading, currentBranchId]);
 
   const handleCreateBranch = useCallback((parentMessageId: string, branchText: string) => {
     const branchId = uuidv4();
