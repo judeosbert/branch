@@ -500,42 +500,70 @@ const ChatInterface = ({
             )}
           </div>
 
-          {/* Branch Columns - Show actual branch conversations */}
+          {/* Branch Hierarchy Columns */}
           {currentBranchId && (() => {
-            const currentBranch = branches.find(b => b.id === currentBranchId);
-            if (!currentBranch) return null;
-
-            // Get the parent conversation up to the branch point
-            const getParentConversation = (): Message[] => {
-              const branchPointIndex = messages.findIndex(msg => msg.id === currentBranch.parentMessageId);
-              if (branchPointIndex === -1) return [];
+            // Build the complete path from root to current branch
+            const buildBranchPath = (branchId: string): ConversationBranch[] => {
+              const branch = branches.find(b => b.id === branchId);
+              if (!branch) return [];
               
-              return messages.slice(0, branchPointIndex + 1).filter(msg => !msg.branchId);
+              if (branch.parentBranchId) {
+                return [...buildBranchPath(branch.parentBranchId), branch];
+              }
+              return [branch];
             };
 
-            const parentMessages = getParentConversation();
+            const branchPath = buildBranchPath(currentBranchId);
+            const columns: React.ReactElement[] = [];
 
-            return (
-              <>
-                {/* Parent Context Column */}
-                <div className="flex-shrink-0 w-96 h-full flex flex-col bg-white border-r border-gray-200 column-snap">
+            // Add columns for each branch in the path
+            branchPath.forEach((branch, index) => {
+              const isCurrentBranch = branch.id === currentBranchId;
+              const branchNumber = branches.findIndex(b => b.id === branch.id) + 1;
+              
+              // Get messages for this specific branch level
+              const branchMessages = messages.filter(msg => msg.branchId === branch.id);
+
+              columns.push(
+                <div 
+                  key={`branch-${branch.id}`} 
+                  className={`flex-shrink-0 w-96 h-full flex flex-col bg-white column-snap ${
+                    index < branchPath.length - 1 ? 'border-r border-gray-200' : ''
+                  }`}
+                >
                   {/* Column Header */}
-                  <div className="border-b border-gray-200 p-3 bg-gray-50 flex-shrink-0">
+                  <div className={`border-b border-gray-200 p-3 flex-shrink-0 ${
+                    isCurrentBranch ? 'bg-green-50' : 'bg-gray-50'
+                  }`}>
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-gray-500 rounded-full flex items-center justify-center">
-                        <MessageCircle size={12} className="text-white" />
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        isCurrentBranch ? 'bg-green-600' : 'bg-green-500'
+                      }`}>
+                        <GitBranch size={12} className="text-white" />
                       </div>
-                      <h3 className="text-sm font-semibold text-gray-900">Parent Context</h3>
-                      <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-                        {parentMessages.length} messages
-                      </span>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          Branch {branchNumber} {index < branchPath.length - 1 ? '(Parent)' : '(Active)'}
+                        </h3>
+                        <p className="text-xs text-green-700 line-clamp-1">
+                          "{branch.branchText}"
+                        </p>
+                      </div>
+                      {isCurrentBranch && (
+                        <button
+                          onClick={() => onNavigateToBranch(null)}
+                          className="text-gray-600 hover:text-gray-800 text-xs font-medium hover:bg-gray-200 px-2 py-1 rounded transition-colors"
+                        >
+                          Close
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  {/* Parent Messages */}
+                  {/* Branch Messages */}
                   <div className="flex-1 overflow-y-auto">
                     <div className="divide-y divide-gray-100">
-                      {parentMessages.map((message) => (
+                      {branchMessages.map((message) => (
                         <div 
                           key={message.id} 
                           className="group relative"
@@ -544,125 +572,80 @@ const ChatInterface = ({
                           <ChatMessageWithBranchHighlight
                             message={message} 
                             onCopy={handleCopy}
-                            isInBranch={false}
+                            isInBranch={true}
                             branches={branches}
                             currentBranchId={currentBranchId}
                           />
-                          {/* Branch point indicator */}
-                          {message.id === currentBranch.parentMessageId && (
-                            <div className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                              Branch Point
-                            </div>
-                          )}
+                          {/* Branch point indicator for nested branches */}
+                          {(() => {
+                            const nestedBranches = branches.filter(b => b.parentMessageId === message.id);
+                            return nestedBranches.length > 0 && (
+                              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                {nestedBranches.length} Branch{nestedBranches.length > 1 ? 'es' : ''}
+                              </div>
+                            );
+                          })()}
                         </div>
                       ))}
-                    </div>
-                  </div>
-                </div>
-              </>
-            );
-          })()}
-
-          {/* Active Branch Column */}
-          {currentBranchId && (() => {
-            const currentBranch = branches.find(b => b.id === currentBranchId);
-            if (!currentBranch) return null;
-
-            return (
-              <div className="flex-shrink-0 w-96 h-full flex flex-col bg-white column-snap">
-                {/* Column Header */}
-                <div className="border-b border-gray-200 p-3 bg-green-50 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center">
-                      <GitBranch size={12} className="text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-semibold text-gray-900">
-                        Branch {branches.findIndex(b => b.id === currentBranchId) + 1}
-                      </h3>
-                      <p className="text-xs text-green-700 line-clamp-1">
-                        "{currentBranch.branchText}"
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => onNavigateToBranch(null)}
-                      className="text-gray-600 hover:text-gray-800 text-xs font-medium hover:bg-gray-200 px-2 py-1 rounded transition-colors"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-
-                {/* Branch Messages */}
-                <div className="flex-1 overflow-y-auto">
-                  <div className="divide-y divide-gray-100">
-                    {getCurrentBranchMessages().map((message) => (
-                      <div 
-                        key={message.id} 
-                        className="group"
-                        onMouseUp={() => handleMessageMouseUp(message.id)}
-                      >
-                        <ChatMessage
-                          message={message} 
-                          onCopy={handleCopy}
-                          isInBranch={true}
-                        />
-                      </div>
-                    ))}
-                    {isLoading && currentBranchId && (
-                      <div className="flex gap-4 p-4 bg-white">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
-                          <Bot size={16} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-900">ChatGPT</span>
+                      {isCurrentBranch && isLoading && (
+                        <div className="flex gap-4 p-4 bg-white">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
+                            <Bot size={16} />
                           </div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-gray-900">ChatGPT</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                    <div ref={branchMessagesEndRef} />
+                      )}
+                      {isCurrentBranch && <div ref={branchMessagesEndRef} />}
+                    </div>
                   </div>
-                </div>
 
-                {/* Branch Input Area */}
-                <div className="border-t p-4 flex-shrink-0 bg-gradient-to-r from-green-50 to-green-100 border-green-200">
-                  <form onSubmit={handleSubmit} className="flex gap-2">
-                    <div className="flex-1 relative">
-                      <textarea
-                        ref={branchTextareaRef}
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Continue this branch conversation..."
-                        className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-green-300 focus:ring-green-500 bg-white"
-                        rows={1}
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="submit"
-                        disabled={!inputValue.trim() || isLoading}
-                        className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-green-600 hover:text-green-800"
-                      >
-                        <Send size={16} />
-                      </button>
+                  {/* Branch Input Area - Only for current active branch */}
+                  {isCurrentBranch && (
+                    <div className="border-t p-4 flex-shrink-0 bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                      <form onSubmit={handleSubmit} className="flex gap-2">
+                        <div className="flex-1 relative">
+                          <textarea
+                            ref={branchTextareaRef}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Continue this branch conversation..."
+                            className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-green-300 focus:ring-green-500 bg-white"
+                            rows={1}
+                            disabled={isLoading}
+                          />
+                          <button
+                            type="submit"
+                            disabled={!inputValue.trim() || isLoading}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-green-600 hover:text-green-800"
+                          >
+                            <Send size={16} />
+                          </button>
+                        </div>
+                      </form>
+                      
+                      <div className="mt-2 text-xs text-center text-green-700">
+                        <div className="flex items-center justify-center gap-1">
+                          <GitBranch size={12} />
+                          <span>Branch conversation • Changes won't affect parent context</span>
+                        </div>
+                      </div>
                     </div>
-                  </form>
-                  
-                  <div className="mt-2 text-xs text-center text-green-700">
-                    <div className="flex items-center justify-center gap-1">
-                      <GitBranch size={12} />
-                      <span>Branch conversation • Changes won't affect parent context</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              </div>
-            );
+              );
+            });
+
+            return columns;
           })()}
         </div>
       </div>
