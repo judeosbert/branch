@@ -37,6 +37,25 @@
   .column-snap {
     scroll-snap-align: start;
   }
+
+  /* Prevent automatic text selection expansion */
+  .precise-select {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    word-break: normal;
+    word-wrap: normal;
+    white-space: pre-wrap;
+  }
+
+  /* Disable text selection expansion behaviors */
+  .precise-select * {
+    -webkit-user-select: inherit;
+    -moz-user-select: inherit;
+    -ms-user-select: inherit;
+    user-select: inherit;
+  }
   
   .animate-slide-in {
     animation: slideIn 0.3s ease-out;

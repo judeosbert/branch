@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
 import SelectionPopup from './SelectionPopup';
@@ -15,78 +15,14 @@ interface Message {
   branchId?: string;
 }
 
-interface ChatMessageProps {
+interface ChatMessageWithBranchHighlightProps {
   message: Message;
   onCopy: (content: string) => void;
   isInBranch?: boolean;
-}
-
-const ChatMessage = ({ message, onCopy, isInBranch }: ChatMessageProps) => {
-  const isUser = message.sender === 'user';
-  
-  return (
-    <div className={`flex gap-4 p-4 ${isUser ? 'bg-gray-50' : 'bg-white'} ${isInBranch ? 'border-l-4 border-green-300' : ''}`}>
-      {/* Avatar */}
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-        isUser ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
-      }`}>
-        {isUser ? <User size={16} /> : <Bot size={16} />}
-      </div>
-      
-      {/* Message Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-gray-900">
-            {isUser ? 'You' : 'ChatGPT'}
-          </span>
-          <span className="text-xs text-gray-500">
-            {message.timestamp.toLocaleTimeString()}
-          </span>
-          {isInBranch && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-              Branch
-            </span>
-          )}
-        </div>
-        
-        <div className="prose max-w-none">
-          <div className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4">
-            {message.content}
-          </div>
-        </div>
-        
-        {!isUser && (
-          <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onCopy(message.content)}
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-              title="Copy message"
-            >
-              <Copy size={14} />
-            </button>
-            <button
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-              title="Good response"
-            >
-              <ThumbsUp size={14} />
-            </button>
-            <button
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-              title="Bad response"
-            >
-              <ThumbsDown size={14} />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-interface ChatMessageWithBranchHighlightProps extends ChatMessageProps {
   branches: ConversationBranch[];
   currentBranchId: string | null;
   onMessageContentMouseUp?: (messageId: string) => void;
+  onBranchIndicatorClick?: (messageBranches: ConversationBranch[]) => void;
 }
 
 const ChatMessageWithBranchHighlight = ({ 
@@ -95,34 +31,80 @@ const ChatMessageWithBranchHighlight = ({
   isInBranch, 
   branches,
   currentBranchId,
-  onMessageContentMouseUp
+  onMessageContentMouseUp,
+  onBranchIndicatorClick
 }: ChatMessageWithBranchHighlightProps) => {
   const isUser = message.sender === 'user';
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
   
   // Find if this message has branches created from it
-  const messageBranches = branches.filter(b => b.parentMessageId === message.id);
+  const messageBranches = useMemo(() => 
+    branches.filter(b => b.parentMessageId === message.id), 
+    [branches, message.id]
+  );
   
-  // Highlight branch text in the message content
-  const highlightBranchText = (content: string) => {
-    let highlightedContent = content;
+  // Simple approach: render plain text during selection, highlighted text when not selecting
+  const shouldShowHighlights = !isSelecting && messageBranches.length > 0;
+  
+  const highlightedContent = useMemo(() => {
+    if (!shouldShowHighlights) {
+      return message.content; // Plain text during selection
+    }
     
+    let content = message.content;
     messageBranches.forEach(branch => {
       const branchText = branch.branchText;
-      if (branchText && highlightedContent.includes(branchText)) {
+      if (branchText && content.includes(branchText)) {
         const isCurrentBranch = currentBranchId === branch.id;
         const highlightClass = isCurrentBranch 
           ? 'bg-green-200 text-green-800 px-1 py-0.5 rounded border border-green-300'
           : 'bg-green-100 text-green-700 px-1 py-0.5 rounded border border-green-200';
         
-        highlightedContent = highlightedContent.replace(
+        content = content.replace(
           branchText,
           `<span class="${highlightClass}">${branchText}</span>`
         );
       }
     });
     
-    return highlightedContent;
-  };
+    return content;
+  }, [message.content, messageBranches, currentBranchId, shouldShowHighlights]);
+
+  // Simplified mouse handlers - let browser handle selection naturally
+  const handleMouseDown = useCallback(() => {
+    setIsSelecting(true);
+    // Don't interfere with browser's natural selection process
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    // Check for selection after a small delay
+    setTimeout(() => {
+      const selection = window.getSelection();
+      
+      if (selection && selection.toString().trim().length > 0) {
+        // Only trigger if selection is within this message
+        const range = selection.getRangeAt(0);
+        const contentElement = contentRef.current;
+        
+        if (contentElement && contentElement.contains(range.commonAncestorContainer)) {
+          onMessageContentMouseUp?.(message.id);
+        }
+      }
+      
+      // Reset selection state
+      setTimeout(() => {
+        setIsSelecting(false);
+      }, 100);
+    }, 30);
+  }, [onMessageContentMouseUp, message.id]);
+
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    // Only prevent drag if it's not part of text selection
+    if (!isSelecting) {
+      e.preventDefault();
+    }
+  }, [isSelecting]);
   
   return (
     <div className={`flex gap-4 p-4 ${isUser ? 'bg-gray-50' : 'bg-white'} ${isInBranch ? 'border-l-4 border-green-300' : ''}`}>
@@ -148,19 +130,43 @@ const ChatMessageWithBranchHighlight = ({
             </span>
           )}
           {messageBranches.length > 0 && (
-            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <button
+              onClick={() => onBranchIndicatorClick?.(messageBranches)}
+              className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-200 ${
+                messageBranches.length === 1 
+                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-md transform hover:scale-105' 
+                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 hover:shadow-md transform hover:scale-105'
+              }`}
+              title={`Click to ${messageBranches.length === 1 ? 'open branch' : 'select from ' + messageBranches.length + ' branches'}`}
+            >
               <GitBranch size={10} />
               {messageBranches.length} branch{messageBranches.length > 1 ? 'es' : ''}
-            </span>
+              {messageBranches.length > 1 && <span className="ml-1 text-xs">📋</span>}
+            </button>
           )}
         </div>
         
         <div className="prose max-w-none">
-          <div 
-            className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text"
-            dangerouslySetInnerHTML={{ __html: highlightBranchText(message.content) }}
-            onMouseUp={() => onMessageContentMouseUp?.(message.id)}
-          />
+          {shouldShowHighlights ? (
+            <div 
+              ref={contentRef}
+              className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text precise-select"
+              dangerouslySetInnerHTML={{ __html: highlightedContent }}
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
+              onDragStart={handleDragStart}
+            />
+          ) : (
+            <div 
+              ref={contentRef}
+              className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text precise-select"
+              onMouseDown={handleMouseDown}
+              onMouseUp={handleMouseUp}
+              onDragStart={handleDragStart}
+            >
+              {message.content}
+            </div>
+          )}
         </div>
         
         {!isUser && (
@@ -213,6 +219,7 @@ const ChatInterface = ({
   const [inputValue, setInputValue] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [isMiniMapFullView, setIsMiniMapFullView] = useState(false);
+  const [showMiniMapWithIntent, setShowMiniMapWithIntent] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -297,31 +304,36 @@ const ChatInterface = ({
 
   // Handle message selection for branching
   const handleMessageMouseUp = (messageId: string) => {
-    if (selection) {
+    // Only set selected message if there's an actual selection
+    const currentSelection = window.getSelection();
+    if (selection && currentSelection && currentSelection.toString().trim()) {
       setSelectedMessageId(messageId);
     }
   };
 
-  // Get current branch messages
-  const getCurrentBranchMessages = (): Message[] => {
-    if (!currentBranchId) return [];
-    
-    const currentBranch = branches.find(b => b.id === currentBranchId);
-    if (!currentBranch) return [];
-    
-    // Build the full branch path to get all messages in the branch hierarchy
-    const buildBranchPath = (branchId: string): string[] => {
-      const branch = branches.find(b => b.id === branchId);
-      if (!branch) return [];
+  // Handle branch indicator click
+  const handleBranchIndicatorClick = (messageBranches: ConversationBranch[]) => {
+    if (messageBranches.length === 1) {
+      // Single branch: automatically navigate to it
+      const branchId = messageBranches[0].id;
+      onNavigateToBranch(branchId);
       
-      if (branch.parentBranchId) {
-        return [...buildBranchPath(branch.parentBranchId), branchId];
-      }
-      return [branchId];
-    };
-    
-    const branchPath = buildBranchPath(currentBranchId);
-    return messages.filter(msg => msg.branchId && branchPath.includes(msg.branchId));
+      // Scroll the column container to show the branch column with smooth animation
+      setTimeout(() => {
+        const columnContainer = document.querySelector('.column-scroll');
+        if (columnContainer) {
+          const columnWidth = 384; // w-96 = 384px
+          columnContainer.scrollTo({
+            left: columnWidth,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+    } else {
+      // Multiple branches: show mini map with intent
+      setShowMiniMapWithIntent(true);
+      setIsMiniMapFullView(true);
+    }
   };
 
   return (
@@ -383,20 +395,67 @@ const ChatInterface = ({
       </div>
 
       {/* Floating MiniMap - Top Right Overlay */}
-      {branches.length > 0 && (
+      {(branches.length > 0 || showMiniMapWithIntent) && (
         <div className={`fixed top-20 right-4 z-50 transition-all duration-300 ${
-          isMiniMapFullView 
+          isMiniMapFullView || showMiniMapWithIntent
             ? 'w-96 h-64' 
             : 'w-48 h-32'
-        }`}>
+        } ${showMiniMapWithIntent ? 'ring-4 ring-purple-500 ring-opacity-50 shadow-2xl' : ''}`}>
+          {showMiniMapWithIntent && (
+            <div className="absolute -top-10 left-0 right-0 text-center">
+              <div className="bg-purple-500 text-white px-4 py-2 rounded-t-lg text-sm font-medium shadow-lg">
+                📋 Select a branch to open
+              </div>
+            </div>
+          )}
           <MiniMap
             branches={branches}
             currentBranchId={currentBranchId}
-            onNavigateToBranch={onNavigateToBranch}
-            onToggleFullView={() => setIsMiniMapFullView(!isMiniMapFullView)}
-            isFullView={isMiniMapFullView}
+            onNavigateToBranch={(branchId) => {
+              onNavigateToBranch(branchId);
+              if (showMiniMapWithIntent) {
+                setShowMiniMapWithIntent(false);
+                setIsMiniMapFullView(false);
+                
+                // Scroll to show the selected branch
+                setTimeout(() => {
+                  const columnContainer = document.querySelector('.column-scroll');
+                  if (columnContainer && branchId) {
+                    const branch = branches.find(b => b.id === branchId);
+                    if (branch) {
+                      const columnWidth = 384; // w-96 = 384px
+                      const scrollLeft = columnWidth * (branch.depth || 1);
+                      columnContainer.scrollTo({
+                        left: scrollLeft,
+                        behavior: 'smooth'
+                      });
+                    }
+                  }
+                }, 100);
+              }
+            }}
+            onToggleFullView={() => {
+              if (showMiniMapWithIntent) {
+                setShowMiniMapWithIntent(false);
+                setIsMiniMapFullView(false);
+              } else {
+                setIsMiniMapFullView(!isMiniMapFullView);
+              }
+            }}
+            isFullView={isMiniMapFullView || showMiniMapWithIntent}
             totalMessages={messages.filter(m => !m.branchId).length}
           />
+          {showMiniMapWithIntent && (
+            <button
+              onClick={() => {
+                setShowMiniMapWithIntent(false);
+                setIsMiniMapFullView(false);
+              }}
+              className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-b-lg text-sm transition-colors shadow-lg"
+            >
+              ✕ Cancel
+            </button>
+          )}
         </div>
       )}
 
@@ -446,6 +505,7 @@ const ChatInterface = ({
                         branches={branches}
                         currentBranchId={currentBranchId}
                         onMessageContentMouseUp={handleMessageMouseUp}
+                        onBranchIndicatorClick={handleBranchIndicatorClick}
                       />
                     </div>
                   ))}
@@ -578,6 +638,7 @@ const ChatInterface = ({
                             branches={branches}
                             currentBranchId={currentBranchId}
                             onMessageContentMouseUp={handleMessageMouseUp}
+                            onBranchIndicatorClick={handleBranchIndicatorClick}
                           />
                           {/* Branch point indicator for nested branches */}
                           {(() => {
