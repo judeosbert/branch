@@ -159,18 +159,89 @@ export class AIService {
     const contentLower = userContent.toLowerCase();
     
     if (contentLower.includes('code') || contentLower.includes('programming')) {
-      return "When it comes to programming, it's important to write clean, maintainable code. Consider breaking down complex problems into smaller, manageable pieces and always test your solutions thoroughly.";
+      return `When it comes to **programming**, it's important to write clean, maintainable code. Here are some key principles:
+
+## Best Practices
+
+1. **Break down complex problems** into smaller, manageable pieces
+2. Always **test your solutions** thoroughly
+3. Use meaningful variable names
+4. Write comments for complex logic
+
+### Example Code
+
+\`\`\`javascript
+function calculateSum(numbers) {
+  return numbers.reduce((sum, num) => sum + num, 0);
+}
+\`\`\`
+
+> Remember: Clean code is not just about functionality, but also about readability and maintainability.`;
     }
     
     if (contentLower.includes('design') || contentLower.includes('ui') || contentLower.includes('interface')) {
-      return "Good design focuses on user experience and accessibility. Keep interfaces simple and intuitive, use consistent patterns, and always consider how users will interact with your designs.";
+      return `Good **design** focuses on user experience and accessibility. Here's what to consider:
+
+## Design Principles
+
+- Keep interfaces **simple and intuitive**
+- Use **consistent patterns** throughout
+- Always consider how users will interact with your designs
+- Ensure accessibility for all users
+
+### Key Areas to Focus On
+
+1. **Visual Hierarchy** - Guide users' attention
+2. **Color Theory** - Use colors purposefully
+3. **Typography** - Choose readable fonts
+4. **Spacing** - Give elements room to breathe
+
+*Pro tip: Always test your designs with real users!*`;
     }
     
     if (contentLower.includes('data') || contentLower.includes('analysis')) {
-      return "Data analysis requires careful consideration of data quality, appropriate methodologies, and clear visualization. Always validate your assumptions and be transparent about limitations in your analysis.";
+      return `**Data analysis** requires careful consideration of multiple factors:
+
+## Key Considerations
+
+| Aspect | Description | Importance |
+|--------|-------------|------------|
+| Data Quality | Ensure accuracy and completeness | High |
+| Methodology | Choose appropriate analysis methods | High |
+| Visualization | Present findings clearly | Medium |
+| Documentation | Record assumptions and limitations | High |
+
+### Process Steps
+
+1. **Data Collection** - Gather relevant information
+2. **Data Cleaning** - Remove inconsistencies
+3. **Analysis** - Apply statistical methods
+4. **Interpretation** - Draw meaningful conclusions
+
+---
+
+*Always validate your assumptions and be transparent about limitations in your analysis.*`;
     }
     
-    return "This is a complex topic that requires careful consideration of multiple factors. I'd recommend researching various perspectives and considering the broader context before making any decisions.";
+    return `This is a **complex topic** that requires careful consideration of multiple factors. Here's my approach:
+
+## Things to Consider
+
+- Research various **perspectives**
+- Consider the **broader context**
+- Look for evidence-based solutions
+- Think about long-term implications
+
+### Recommended Next Steps
+
+1. Gather more information
+2. Consult with experts
+3. Evaluate different options
+4. Make an informed decision
+
+> *"The best decisions are made with both data and intuition."*
+
+I'd recommend exploring this topic further before making any major decisions.`;
   }
 
   private getOpenAIModel(): string {
