@@ -162,7 +162,29 @@ function App() {
     }
   }, [isLoading, currentBranchId, aiService, getRelevantHistory]);
 
-  const handleCreateBranch = useCallback((parentMessageId: string, branchText: string) => {
+  // Function to generate a meaningful branch title using AI
+  const generateBranchTitle = useCallback(async (branchText: string, parentMessageId: string): Promise<string> => {
+    try {
+      // Find the parent message
+      const parentMessage = messages.find(m => m.id === parentMessageId);
+      if (!parentMessage) return `Branch: ${branchText.substring(0, 30)}...`;
+
+      // Get the conversation history up to this point
+      const history = getRelevantHistory(parentMessage.branchId || null);
+      
+      // Use AI service to generate title
+      const title = await aiService.generateBranchTitle(branchText, history);
+      
+      return title;
+    } catch (error) {
+      console.error('Error generating branch title:', error);
+      // Fallback to simple title
+      const cleanText = branchText.trim().substring(0, 40);
+      return `Branch: ${cleanText}${branchText.length > 40 ? '...' : ''}`;
+    }
+  }, [messages, aiService, getRelevantHistory]);
+
+  const handleCreateBranch = useCallback(async (parentMessageId: string, branchText: string) => {
     const branchId = uuidv4();
     
     // ==================================================================================
@@ -198,10 +220,13 @@ function App() {
     // ==================================================================================
     // END CRITICAL CORE BRANCHING LOGIC
     // ==================================================================================
+
+    // Generate AI-powered title
+    const branchTitle = await generateBranchTitle(branchText, parentMessageId);
     
     const newBranch: ConversationBranch = {
       id: branchId,
-      name: `Branch from "${branchText.substring(0, 20)}..."`,
+      name: branchTitle,
       parentMessageId,
       parentBranchId,
       branchText,
@@ -212,7 +237,7 @@ function App() {
     
     setBranches(prev => [...prev, newBranch]);
     return branchId;
-  }, [currentBranchId, branches, messages]);
+  }, [currentBranchId, branches, messages, generateBranchTitle]);
 
   const handleNavigateToBranch = useCallback((branchId: string | null) => {
     setCurrentBranchId(branchId);
