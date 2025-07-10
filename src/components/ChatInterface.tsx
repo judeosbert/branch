@@ -86,6 +86,7 @@ const ChatMessage = ({ message, onCopy, isInBranch }: ChatMessageProps) => {
 interface ChatMessageWithBranchHighlightProps extends ChatMessageProps {
   branches: ConversationBranch[];
   currentBranchId: string | null;
+  onMessageContentMouseUp?: (messageId: string) => void;
 }
 
 const ChatMessageWithBranchHighlight = ({ 
@@ -93,7 +94,8 @@ const ChatMessageWithBranchHighlight = ({
   onCopy, 
   isInBranch, 
   branches,
-  currentBranchId
+  currentBranchId,
+  onMessageContentMouseUp
 }: ChatMessageWithBranchHighlightProps) => {
   const isUser = message.sender === 'user';
   
@@ -155,8 +157,9 @@ const ChatMessageWithBranchHighlight = ({
         
         <div className="prose max-w-none">
           <div 
-            className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4"
+            className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4 cursor-text"
             dangerouslySetInnerHTML={{ __html: highlightBranchText(message.content) }}
+            onMouseUp={() => onMessageContentMouseUp?.(message.id)}
           />
         </div>
         
@@ -435,7 +438,6 @@ const ChatInterface = ({
                     <div 
                       key={message.id} 
                       className="group"
-                      onMouseUp={() => handleMessageMouseUp(message.id)}
                     >
                       <ChatMessageWithBranchHighlight
                         message={message} 
@@ -443,6 +445,7 @@ const ChatInterface = ({
                         isInBranch={false}
                         branches={branches}
                         currentBranchId={currentBranchId}
+                        onMessageContentMouseUp={handleMessageMouseUp}
                       />
                     </div>
                   ))}
@@ -567,7 +570,6 @@ const ChatInterface = ({
                         <div 
                           key={message.id} 
                           className="group relative"
-                          onMouseUp={() => handleMessageMouseUp(message.id)}
                         >
                           <ChatMessageWithBranchHighlight
                             message={message} 
@@ -575,6 +577,7 @@ const ChatInterface = ({
                             isInBranch={true}
                             branches={branches}
                             currentBranchId={currentBranchId}
+                            onMessageContentMouseUp={handleMessageMouseUp}
                           />
                           {/* Branch point indicator for nested branches */}
                           {(() => {
