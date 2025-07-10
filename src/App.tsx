@@ -59,6 +59,36 @@ function App() {
       };
       
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Update branch messages if we're in a branch
+      if (branchId || currentBranchId) {
+        const targetBranchId = branchId || currentBranchId;
+        setBranches(prev => prev.map(branch => {
+          if (branch.id === targetBranchId) {
+            return {
+              ...branch,
+              messages: [
+                ...branch.messages,
+                {
+                  id: userMessage.id,
+                  content: userMessage.content,
+                  sender: userMessage.sender,
+                  timestamp: userMessage.timestamp,
+                  branchId: targetBranchId,
+                },
+                {
+                  id: aiMessage.id,
+                  content: aiMessage.content,
+                  sender: aiMessage.sender,
+                  timestamp: aiMessage.timestamp,
+                  branchId: targetBranchId,
+                }
+              ]
+            };
+          }
+          return branch;
+        }));
+      }
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {

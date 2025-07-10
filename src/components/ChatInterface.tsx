@@ -4,6 +4,7 @@ import WelcomeScreen from './WelcomeScreen';
 import SelectionPopup from './SelectionPopup';
 import Breadcrumb from './Breadcrumb';
 import BranchIndicator from './BranchIndicator';
+import MiniMap from './MiniMap';
 import { useTextSelection } from '../hooks/useTextSelection';
 import type { ConversationBranch } from '../types';
 
@@ -141,6 +142,7 @@ const ChatInterface = ({
 }: ChatInterfaceProps) => {
   const [inputValue, setInputValue] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+  const [isMiniMapFullView, setIsMiniMapFullView] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { selection, clearSelection } = useTextSelection();
@@ -344,6 +346,18 @@ const ChatInterface = ({
           ChatGPT can make mistakes. Check important info.
         </div>
       </div>
+      
+      {/* Mini Map */}
+      {branches.length > 0 && (
+        <MiniMap
+          branches={branches}
+          currentBranchId={currentBranchId}
+          onNavigateToBranch={onNavigateToBranch}
+          onToggleFullView={() => setIsMiniMapFullView(!isMiniMapFullView)}
+          isFullView={isMiniMapFullView}
+          totalMessages={messages.filter(m => !m.branchId).length}
+        />
+      )}
     </div>
   );
 };
