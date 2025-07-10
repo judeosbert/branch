@@ -26,6 +26,7 @@ interface MiniMapProps {
   onToggleFullView: () => void;
   isFullView: boolean;
   totalMessages: number;
+  hideHeader?: boolean;
 }
 
 const MiniMap: React.FC<MiniMapProps> = ({
@@ -34,7 +35,8 @@ const MiniMap: React.FC<MiniMapProps> = ({
   onNavigateToBranch,
   onToggleFullView,
   isFullView,
-  totalMessages
+  totalMessages,
+  hideHeader = false
 }) => {
   const [nodes, setNodes] = useState<MiniMapNode[]>([]);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -375,22 +377,24 @@ const MiniMap: React.FC<MiniMapProps> = ({
   return (
     <div className="relative w-full h-full">
       <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden h-full flex flex-col">
-        {/* Mini Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-2 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <Map size={14} />
-            <span className="text-sm font-medium">Navigation</span>
+        {/* Mini Header - Hide if hideHeader prop is true */}
+        {!hideHeader && (
+          <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-2 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <Map size={14} />
+              <span className="text-sm font-medium">Navigation</span>
+            </div>
+            <button
+              onClick={onToggleFullView}
+              className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-colors"
+            >
+              <Maximize2 size={12} />
+            </button>
           </div>
-          <button
-            onClick={onToggleFullView}
-            className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-colors"
-          >
-            <Maximize2 size={12} />
-          </button>
-        </div>
+        )}
         
         {/* Mini Graph */}
-        <div className="p-2 flex-1 overflow-hidden">
+        <div className={`flex-1 overflow-hidden ${hideHeader ? 'p-1' : 'p-2'}`}>
           <svg
             width="100%"
             height="100%"
@@ -423,10 +427,12 @@ const MiniMap: React.FC<MiniMapProps> = ({
           </svg>
         </div>
         
-        {/* Mini Footer */}
-        <div className="bg-gray-50 px-2 py-1 text-xs text-gray-600 border-t">
-          {branches.length} branches • Click to expand
-        </div>
+        {/* Mini Footer - Hide if hideHeader prop is true */}
+        {!hideHeader && (
+          <div className="bg-gray-50 px-2 py-1 text-xs text-gray-600 border-t">
+            {branches.length} branches • Click to expand
+          </div>
+        )}
       </div>
     </div>
   );

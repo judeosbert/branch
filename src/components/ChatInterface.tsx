@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings } from 'lucide-react';
+import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings, MapPin } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
 import SelectionPopup from './SelectionPopup';
 import Breadcrumb from './Breadcrumb';
-import MiniMap from './MiniMap';
+import DraggableMiniMap from './DraggableMiniMap';
 import SettingsPopup from './SettingsPopup';
 import { useTextSelection } from '../hooks/useTextSelection';
 import type { ConversationBranch } from '../types';
@@ -238,8 +238,7 @@ const ChatInterface = ({
 }: ChatInterfaceProps) => {
   const [inputValue, setInputValue] = useState('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [isMiniMapFullView, setIsMiniMapFullView] = useState(false);
-  const [showMiniMapWithIntent, setShowMiniMapWithIntent] = useState(false);
+  const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -351,9 +350,8 @@ const ChatInterface = ({
         }
       }, 100);
     } else {
-      // Multiple branches: show mini map with intent
-      setShowMiniMapWithIntent(true);
-      setIsMiniMapFullView(true);
+      // Multiple branches: show MiniMap if not already visible
+      setIsMiniMapVisible(true);
     }
   };
 
@@ -385,60 +383,15 @@ const ChatInterface = ({
                 )}
               </div>
               
-              {/* Embedded MiniMap in Header */}
-              {(branches.length > 0 || showMiniMapWithIntent) && (
-                <div className="relative mr-4">
-                  {/* MiniMap Container - Positioned absolutely to break out of header height */}
-                  <div className={`absolute top-full right-0 z-50 transition-all duration-300 ${
-                    isMiniMapFullView || showMiniMapWithIntent
-                      ? 'w-96 h-64' 
-                      : 'w-64 h-32'
-                  } ${showMiniMapWithIntent ? 'ring-2 ring-purple-500 ring-opacity-50 shadow-xl' : 'shadow-lg'}`}>
-                    <MiniMap
-                      branches={branches}
-                      currentBranchId={currentBranchId}
-                      onNavigateToBranch={(branchId) => {
-                        onNavigateToBranch(branchId);
-                        if (showMiniMapWithIntent) {
-                          setShowMiniMapWithIntent(false);
-                          setIsMiniMapFullView(false);
-                          
-                          // Scroll to show the selected branch
-                          setTimeout(() => {
-                            const columnContainer = document.querySelector('.column-scroll');
-                            if (columnContainer && branchId) {
-                              const branch = branches.find(b => b.id === branchId);
-                              if (branch) {
-                                const columnWidth = 384; // w-96 = 384px
-                                const scrollLeft = columnWidth * (branch.depth || 1);
-                                columnContainer.scrollTo({
-                                  left: scrollLeft,
-                                  behavior: 'smooth'
-                                });
-                              }
-                            }
-                          }, 100);
-                        }
-                      }}
-                      onToggleFullView={() => {
-                        if (showMiniMapWithIntent) {
-                          setShowMiniMapWithIntent(false);
-                          setIsMiniMapFullView(false);
-                        } else {
-                          setIsMiniMapFullView(!isMiniMapFullView);
-                        }
-                      }}
-                      isFullView={isMiniMapFullView || showMiniMapWithIntent}
-                      totalMessages={messages.filter(m => !m.branchId).length}
-                    />
-                  </div>
-                  {/* Invisible spacer to maintain header layout */}
-                  <div className={`transition-all duration-300 ${
-                    isMiniMapFullView || showMiniMapWithIntent
-                      ? 'w-16 h-8' 
-                      : 'w-12 h-6'
-                  }`}></div>
-                </div>
+              {/* MiniMap Toggle Button - Show when branches exist but MiniMap is hidden */}
+              {(branches.length > 0 && !isMiniMapVisible) && (
+                <button
+                  onClick={() => setIsMiniMapVisible(true)}
+                  className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 p-2 rounded-lg transition-colors mr-2"
+                  title="Show Navigation Map"
+                >
+                  <MapPin size={20} />
+                </button>
               )}
               
               {/* Settings Button - Always show */}
@@ -784,6 +737,17 @@ const ChatInterface = ({
         onSave={onSettingsChange}
         currentSettings={settings}
       />
+      
+      {/* Draggable MiniMap - Floating with corner snapping */}
+      {(branches.length > 0 && isMiniMapVisible) && (
+        <DraggableMiniMap
+          branches={branches}
+          currentBranchId={currentBranchId}
+          onNavigateToBranch={onNavigateToBranch}
+          onClose={() => setIsMiniMapVisible(false)}
+          totalMessages={messages.filter(m => !m.branchId).length}
+        />
+      )}
     </div>
   );
 };
