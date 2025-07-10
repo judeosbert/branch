@@ -565,6 +565,15 @@ const ChatInterface = ({
 
           {/* Branch Hierarchy Columns */}
           {currentBranchId && (() => {
+            // ==================================================================================
+            // CRITICAL COLUMN DISPLAY LOGIC - DO NOT MODIFY WITHOUT EXPLICIT REQUEST
+            // ==================================================================================
+            // This logic ensures only the active branch lineage is shown in columns:
+            // 1. Only displays the path from root to current active branch
+            // 2. Does NOT show sibling branches in the column view
+            // 3. Sibling branches are only visible in the minimap
+            // ==================================================================================
+            
             // Build the complete path from root to current branch
             const buildBranchPath = (branchId: string): ConversationBranch[] => {
               const branch = branches.find(b => b.id === branchId);
@@ -578,6 +587,10 @@ const ChatInterface = ({
 
             const branchPath = buildBranchPath(currentBranchId);
             const columns: React.ReactElement[] = [];
+            
+            // ==================================================================================
+            // END CRITICAL COLUMN DISPLAY LOGIC
+            // ==================================================================================
 
             // Add columns for each branch in the path
             branchPath.forEach((branch, index) => {

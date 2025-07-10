@@ -99,17 +99,48 @@ function App() {
   const handleCreateBranch = useCallback((parentMessageId: string, branchText: string) => {
     const branchId = uuidv4();
     
-    // Determine the depth and parent branch
+    // ==================================================================================
+    // CRITICAL CORE BRANCHING LOGIC - DO NOT MODIFY WITHOUT EXPLICIT REQUEST
+    // ==================================================================================
+    // This logic ensures proper branch hierarchy and prevents graph corruption.
+    // Key principles:
+    // 1. Branches from the same parent message should be SIBLINGS, not nested
+    // 2. Only branches created from messages within a branch should have parentBranchId
+    // 3. All branches from main chat messages should be root-level (depth 0)
+    // ==================================================================================
+    
     let depth = 0;
     let parentBranchId: string | undefined;
     
-    if (currentBranchId) {
-      const currentBranch = branches.find(b => b.id === currentBranchId);
-      if (currentBranch) {
-        depth = currentBranch.depth + 1;
-        parentBranchId = currentBranchId;
+    // Find the parent message to determine branch placement
+    const parentMessage = messages.find(m => m.id === parentMessageId);
+    
+    console.log('🌟 BRANCH CREATION DEBUG:', {
+      parentMessageId,
+      parentMessage: parentMessage ? { id: parentMessage.id, branchId: parentMessage.branchId, content: parentMessage.content.substring(0, 50) + '...' } : null,
+      currentBranchId,
+      branchText: branchText.substring(0, 30) + '...'
+    });
+    
+    if (parentMessage && parentMessage.branchId) {
+      // Parent message is within a branch - create nested branch
+      const parentBranch = branches.find(b => b.id === parentMessage.branchId);
+      if (parentBranch) {
+        depth = parentBranch.depth + 1;
+        parentBranchId = parentMessage.branchId;
+        console.log('📍 Creating NESTED branch:', { depth, parentBranchId, fromBranch: parentBranch.branchText.substring(0, 30) + '...' });
       }
+    } else {
+      // Parent message is in main chat - always create root-level branch
+      // This ensures all branches from main chat are siblings, regardless of current context
+      depth = 0;
+      parentBranchId = undefined;
+      console.log('🌱 Creating ROOT-LEVEL branch (sibling from main chat):', { depth, parentBranchId });
     }
+    
+    // ==================================================================================
+    // END CRITICAL CORE BRANCHING LOGIC
+    // ==================================================================================
     
     const newBranch: ConversationBranch = {
       id: branchId,
@@ -124,7 +155,7 @@ function App() {
     
     setBranches(prev => [...prev, newBranch]);
     return branchId;
-  }, [currentBranchId, branches]);
+  }, [currentBranchId, branches, messages]);
 
   const handleNavigateToBranch = useCallback((branchId: string | null) => {
     setCurrentBranchId(branchId);

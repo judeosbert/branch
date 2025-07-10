@@ -64,34 +64,77 @@ const MiniMap: React.FC<MiniMapProps> = ({
       
       newNodes.push(mainChatNode);
       
-      // Add branch nodes
-      branches.forEach((branch, index) => {
-        const depth = branch.depth || 0;
-        const branchesAtDepth = branches.filter(b => (b.depth || 0) === depth);
-        const indexAtDepth = branchesAtDepth.findIndex(b => b.id === branch.id);
-        
-        const x = 50 + (depth + 1) * 200;
-        const y = 50 + indexAtDepth * 120;
-        
-        const node: MiniMapNode = {
-          id: branch.id,
-          x,
-          y,
-          width: 120,
-          height: 80,
-          label: `Branch ${index + 1}`,
-          summary: branch.branchText.length > 40 ? branch.branchText.substring(0, 40) + '...' : branch.branchText,
-          branchText: branch.branchText,
-          depth: depth + 1,
-          isActive: currentBranchId === branch.id,
-          isMainChat: false,
-          messageCount: branch.messages.length,
-          children: branches.filter(b => b.parentBranchId === branch.id).map(b => b.id),
-          parentId: branch.parentBranchId || 'main'
-        };
-        
-        newNodes.push(node);
+      // ==================================================================================
+      // CRITICAL MINIMAP LOGIC - DO NOT MODIFY WITHOUT EXPLICIT REQUEST
+      // ==================================================================================
+      // This ensures proper visual representation of branch hierarchy:
+      // 1. All branches from main chat appear at the same level (depth 1)
+      // 2. Sibling branches are positioned vertically at same x-coordinate
+      // 3. Only nested branches (from within other branches) have deeper depth
+      // ==================================================================================
+      
+      // Group branches by their actual hierarchy depth
+      const branchLevels: { [depth: number]: ConversationBranch[] } = {};
+      
+      branches.forEach(branch => {
+        const actualDepth = branch.parentBranchId ? (branch.depth || 0) + 1 : 1; // Root branches at depth 1
+        if (!branchLevels[actualDepth]) {
+          branchLevels[actualDepth] = [];
+        }
+        branchLevels[actualDepth].push(branch);
       });
+      
+      console.log('🗺️ MINIMAP NODE POSITIONING:', {
+        totalBranches: branches.length,
+        branchLevels: Object.keys(branchLevels).reduce((acc, depth) => {
+          acc[depth] = branchLevels[Number(depth)].map(b => ({
+            id: b.id,
+            branchText: b.branchText.substring(0, 20) + '...',
+            parentBranchId: b.parentBranchId,
+            depth: b.depth
+          }));
+          return acc;
+        }, {} as any),
+        currentBranchId
+      });
+      
+      // Add branch nodes level by level
+      Object.keys(branchLevels)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .forEach(depth => {
+          const branchesAtLevel = branchLevels[depth];
+          
+          branchesAtLevel.forEach((branch, indexAtLevel) => {
+            const x = 50 + depth * 200;
+            const y = 50 + indexAtLevel * 120;
+            
+            const branchIndex = branches.findIndex(b => b.id === branch.id);
+            
+            const node: MiniMapNode = {
+              id: branch.id,
+              x,
+              y,
+              width: 120,
+              height: 80,
+              label: `Branch ${branchIndex + 1}`,
+              summary: branch.branchText.length > 40 ? branch.branchText.substring(0, 40) + '...' : branch.branchText,
+              branchText: branch.branchText,
+              depth: depth,
+              isActive: currentBranchId === branch.id,
+              isMainChat: false,
+              messageCount: branch.messages.length,
+              children: branches.filter(b => b.parentBranchId === branch.id).map(b => b.id),
+              parentId: branch.parentBranchId || 'main'
+            };
+            
+            newNodes.push(node);
+          });
+        });
+      
+      // ==================================================================================
+      // END CRITICAL MINIMAP LOGIC
+      // ==================================================================================
       
       setNodes(newNodes);
     };
