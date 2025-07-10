@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Key, Brain, Save, AlertCircle, Type } from 'lucide-react';
 
 export interface SettingsConfig {
@@ -31,6 +31,23 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [useTextArea, setUseTextArea] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Handle outside click to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        handleCancel();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     setApiKey(currentSettings.openaiApiKey);
@@ -69,7 +86,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
-      <div className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 overflow-hidden animate-scale-in">
+      <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

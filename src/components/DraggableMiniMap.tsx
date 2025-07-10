@@ -82,6 +82,20 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
     }
   }, []);
 
+  // Handle outside click to close minimap
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (miniMapRef.current && !miniMapRef.current.contains(event.target as Node) && !isDragging) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [onClose, isDragging]);
+
   // Corner snapping logic
   const snapToCorner = useCallback((x: number, y: number): Position => {
     const windowWidth = window.innerWidth;
