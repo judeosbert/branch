@@ -5,6 +5,7 @@ import Breadcrumb from './Breadcrumb';
 import DraggableMiniMap from './DraggableMiniMap';
 import SettingsPopup from './SettingsPopup';
 import BranchableMessage from './BranchableMessage';
+import MarkdownMessage from './MarkdownMessage';
 import ResizableColumn from './ResizableColumn';
 import type { ConversationBranch } from '../types';
 import type { SettingsConfig } from './SettingsPopup';
@@ -338,12 +339,17 @@ const ChatInterface = ({
                   Branch
                 </h1>
                 {currentBranchId && (
-                  <p className="text-sm text-green-700">
+                  <div className="text-sm text-green-700">
                     {(() => {
                       const branch = branches.find(b => b.id === currentBranchId);
-                      return branch ? `"${branch.branchText.substring(0, 50)}..."` : '';
+                      return branch ? (
+                        <MarkdownMessage 
+                          content={`"${branch.branchText.substring(0, 50)}..."`}
+                          className="text-sm text-green-700 mb-0"
+                        />
+                      ) : '';
                     })()}
-                  </p>
+                  </div>
                 )}
               </div>
               
@@ -584,9 +590,12 @@ const ChatInterface = ({
                         <h3 className="text-sm font-semibold text-gray-900">
                           Branch {branchNumber} {index < branchPath.length - 1 ? '(Parent)' : '(Active)'}
                         </h3>
-                        <p className="text-xs text-green-700 line-clamp-1">
-                          "{branch.branchText}"
-                        </p>
+                        <div className="text-xs text-green-700 line-clamp-1">
+                          <MarkdownMessage 
+                            content={`"${branch.branchText}"`}
+                            className="text-xs text-green-700 mb-0"
+                          />
+                        </div>
                       </div>
                       {isCurrentBranch && (
                         <button

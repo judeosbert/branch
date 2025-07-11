@@ -2,6 +2,7 @@ import { memo, useCallback, useState } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { MessageCircle, GitBranch, Copy } from 'lucide-react';
 import type { ConversationMessage } from '../types';
+import MarkdownMessage from './MarkdownMessage';
 
 interface ConversationNodeProps {
   data: {
@@ -74,12 +75,11 @@ const ConversationNode = memo(({ data, selected }: ConversationNodeProps) => {
             </span>
           </div>
           
-          <div 
-            className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap"
+          <MarkdownMessage 
+            content={message.content}
+            className="text-sm text-gray-800 leading-relaxed"
             onMouseUp={handleTextSelection}
-          >
-            {message.content}
-          </div>
+          />
           
           {selectedText && (
             <div className="mt-2 p-2 bg-yellow-100 border border-yellow-300 rounded text-xs">

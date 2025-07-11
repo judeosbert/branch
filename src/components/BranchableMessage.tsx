@@ -93,18 +93,27 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
         return (
           <div 
             key={idx} 
-            className={`relative flex leading-normal rounded-md transition-all duration-200 ${
+            className={`relative flex leading-normal rounded-md transition-all duration-200 mb-2 ${
               !disableBranching && isHovered ? 'bg-blue-50' : ''
             }`}
             onMouseEnter={!disableBranching ? () => setHoveredUnit(idx) : undefined}
             onMouseLeave={!disableBranching ? () => setHoveredUnit(null) : undefined}
           >
+            {/* Tooltip - positioned above content but arrow points to branch icon */}
+            {!disableBranching && isHovered && (
+              <div className="absolute left-6 bottom-full mb-2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 animate-fade-in">
+                Branch from here
+                {/* Arrow pointing down and left to the branch icon */}
+                <div className="absolute left-0 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-800 transform -translate-x-2"></div>
+              </div>
+            )}
+            
             {/* Branch Icon - Only show if branching is enabled */}
             {!disableBranching && (
               <div className="absolute left-0 top-0 bottom-0 w-6 flex flex-col cursor-pointer z-10">
                 {/* First row - Branch Icon */}
                 <div 
-                  className={`flex-1 flex items-center justify-center transition-colors ${
+                  className={`flex-1 flex items-center justify-center transition-colors relative ${
                     isHovered ? 'bg-green-100' : ''
                   }`}
                   onClick={() => onBranch(messageId, unit.text)}
@@ -120,7 +129,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
                 {branchCount > 0 && (
                   <div 
                     className={`flex-1 flex items-center justify-center transition-colors relative ${
-                      isHovered ? 'bg-blue-100' : ''
+                      isHovered ? 'bg-blue-100' : (branchCount > 0 ? 'bg-blue-100' : '')
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -128,7 +137,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
                     }}
                   >
                     <div className={`text-xs font-medium transition-colors ${
-                      isHovered ? 'text-blue-600' : 'text-gray-400'
+                      isHovered ? 'text-blue-600' : (branchCount > 0 ? 'text-blue-600' : 'text-gray-400')
                     }`}>
                       {branchCount}
                     </div>
@@ -164,7 +173,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
             )}
             
             {/* Content */}
-            <div className={`${disableBranching ? 'w-full' : 'pl-6'} min-w-0 relative`}
+            <div className={`${disableBranching ? 'w-full' : 'pl-8'} min-w-0 relative`}
               style={{ userSelect: 'text' }}
             >
               <div className="relative">

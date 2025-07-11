@@ -5,6 +5,7 @@ import SelectionPopup from './SelectionPopup';
 import Breadcrumb from './Breadcrumb';
 import BranchIndicator from './BranchIndicator';
 import MiniMap from './MiniMap';
+import MarkdownMessage from './MarkdownMessage';
 import { useTextSelection } from '../hooks/useTextSelection';
 import type { ConversationBranch } from '../types';
 
@@ -51,9 +52,10 @@ const ChatMessage = ({ message, onCopy, isInBranch }: ChatMessageProps) => {
         </div>
         
         <div className="prose max-w-none">
-          <div className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-4">
-            {message.content}
-          </div>
+          <MarkdownMessage 
+            content={message.content}
+            className="text-gray-800 leading-relaxed select-text mb-4"
+          />
         </div>
         
         {!isUser && (
@@ -393,12 +395,17 @@ const ChatInterface = ({
                     {currentBranchId ? 'Branch Conversation' : 'ChatGPT'}
                   </h1>
                   {currentBranchId && (
-                    <p className="text-sm text-green-700">
+                    <div className="text-sm text-green-700">
                       {(() => {
                         const branch = branches.find(b => b.id === currentBranchId);
-                        return branch ? `"${branch.branchText.substring(0, 50)}..."` : '';
+                        return branch ? (
+                          <MarkdownMessage 
+                            content={`"${branch.branchText.substring(0, 50)}..."`}
+                            className="text-sm text-green-700 mb-0"
+                          />
+                        ) : '';
                       })()}
-                    </p>
+                    </div>
                   )}
                 </div>
               </div>
