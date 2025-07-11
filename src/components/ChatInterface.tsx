@@ -49,6 +49,11 @@ const ChatInterface = ({
       console.error(e);
     }
   }, [onCreateBranch, onNavigateToBranch]);
+
+  // Navigate to existing branch
+  const handleSelectBranch = useCallback((branchId: string) => {
+    onNavigateToBranch(branchId);
+  }, [onNavigateToBranch]);
   const [inputValue, setInputValue] = useState('');
   const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -439,7 +444,12 @@ const ChatInterface = ({
                               content={message.content}
                               messageId={message.id}
                               onBranch={handleLineBranch}
-                              branches={branches}
+                              onSelectBranch={handleSelectBranch}
+                              branches={branches.map(b => ({ 
+                                parentMessageId: b.parentMessageId, 
+                                branchText: b.branchText,
+                                id: b.id
+                              }))}
                             />
                             <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => handleCopy(message.content)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Copy message">
@@ -606,8 +616,16 @@ const ChatInterface = ({
                                   Selected Text
                                 </span>
                               </div>
-                              <div className="text-sm text-green-700 bg-white border border-green-200 rounded-lg p-3 italic">
-                                "{branch.branchText}"
+                              <div className="text-sm text-green-700 bg-white border border-green-200 rounded-lg p-3">
+                                <BranchableMessage
+                                  content={branch.branchText}
+                                  messageId={`branch-origin-${branch.id}`}
+                                  onBranch={() => {}} // No branching from branch origin
+                                  onSelectBranch={() => {}} // No branch selection from branch origin
+                                  branches={[]}
+                                  className="branch-origin-text"
+                                  disableBranching={true}
+                                />
                               </div>
                               <p className="text-xs text-green-600 mt-2">
                                 This branch was created from the text above. Start typing below to continue the conversation in this context.
@@ -631,7 +649,12 @@ const ChatInterface = ({
                                 content={message.content}
                                 messageId={message.id}
                                 onBranch={handleLineBranch}
-                                branches={branches}
+                                onSelectBranch={handleSelectBranch}
+                                branches={branches.map(b => ({ 
+                                  parentMessageId: b.parentMessageId, 
+                                  branchText: b.branchText,
+                                  id: b.id
+                                }))}
                               />
                               {/* nested branches indicator */}
                               {(() => {

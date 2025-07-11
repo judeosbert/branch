@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MarkdownMessage from './MarkdownMessage';
 import { GitBranch } from 'lucide-react';
 
@@ -6,50 +6,86 @@ interface BranchableMessageProps {
   content: string;
   messageId: string;
   onBranch: (messageId: string, branchText: string) => void;
-  branches?: Array<{ parentMessageId: string; branchText: string }>;
+  onSelectBranch?: (branchId: string) => void;
+  branches?: Array<{ parentMessageId: string; branchText: string; id: string }>;
+  className?: string;
+  disableBranching?: boolean;
 }
 
-// Utility to split content into branchable units: code blocks and text lines
+// Utility to split content into branchable units: preserve markdown structure
 function parseUnits(content: string) {
-  const units: Array<{ text: string; isCode: boolean }> = [];
+  const units: Array<{ text: string; type: 'line' | 'codeblock' }> = [];
   const codeBlockRegex = /```[\s\S]*?```/g;
   let lastIndex = 0;
   let match;
+  
   while ((match = codeBlockRegex.exec(content)) !== null) {
     // text before code block
     const before = content.slice(lastIndex, match.index);
-    if (before) {
-      // split by newline
+    if (before.trim()) {
+      // split by newline but preserve other markdown formatting
       const lines = before.split('\n');
       lines.forEach(line => {
-        if (line.trim() !== '') units.push({ text: line, isCode: false });
+        if (line.trim() !== '') units.push({ text: line, type: 'line' });
       });
     }
-    // code block
-    units.push({ text: match[0], isCode: true });
+    // code block (keep as single unit)
+    units.push({ text: match[0], type: 'codeblock' });
     lastIndex = match.index + match[0].length;
   }
+  
+  // remaining text after last code block
   const after = content.slice(lastIndex);
-  if (after) {
+  if (after.trim()) {
     const lines = after.split('\n');
     lines.forEach(line => {
-      if (line.trim() !== '') units.push({ text: line, isCode: false });
+      if (line.trim() !== '') units.push({ text: line, type: 'line' });
     });
   }
+  
   return units;
 }
 
-const BranchableMessage: React.FC<BranchableMessageProps> = ({ content, messageId, onBranch, branches = [] }) => {
+const BranchableMessage: React.FC<BranchableMessageProps> = ({ 
+  content, 
+  messageId, 
+  onBranch, 
+  onSelectBranch,
+  branches = [], 
+  className,
+  disableBranching = false 
+}) => {
   const units = parseUnits(content);
   const [hoveredUnit, setHoveredUnit] = useState<number | null>(null);
+  const [showBranchPopup, setShowBranchPopup] = useState<{ unitIndex: number; unitText: string } | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popupRef.current && !popupRef.current.contains(event.target as Node)) {
+        setShowBranchPopup(null);
+      }
+    };
+
+    if (showBranchPopup) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showBranchPopup]);
 
   // Helper function to count branches for a specific text
   const getBranchCount = (text: string) => {
     return branches.filter(b => b.parentMessageId === messageId && b.branchText === text).length;
   };
 
+  // Helper function to get branches for a specific text
+  const getBranchesForText = (text: string) => {
+    return branches.filter(b => b.parentMessageId === messageId && b.branchText === text);
+  };
+
   return (
-    <div className="branchable-message leading-normal">
+    <div className={`branchable-message leading-normal ${className || ''}`}>
       {units.map((unit, idx) => {
         const branchCount = getBranchCount(unit.text);
         const isHovered = hoveredUnit === idx;
@@ -57,57 +93,86 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({ content, messageI
         return (
           <div 
             key={idx} 
-            className={`relative flex items-start leading-normal rounded-md transition-all duration-200 ${
-              isHovered ? 'bg-blue-50' : ''
+            className={`relative flex leading-normal rounded-md transition-all duration-200 ${
+              !disableBranching && isHovered ? 'bg-blue-50' : ''
             }`}
-            onMouseEnter={() => setHoveredUnit(idx)}
-            onMouseLeave={() => setHoveredUnit(null)}
+            onMouseEnter={!disableBranching ? () => setHoveredUnit(idx) : undefined}
+            onMouseLeave={!disableBranching ? () => setHoveredUnit(null) : undefined}
           >
-            {/* Branch Icon - Clickable area for branching */}
-            <div 
-              className={`flex-shrink-0 w-6 flex items-center justify-center pt-1 cursor-pointer ${
-                isHovered ? 'hover:bg-green-100' : ''
-              }`}
-              onClick={() => onBranch(messageId, unit.text)}
-              title="Branch from here"
-            >
-              <div className={`p-1 transition-colors ${
-                isHovered ? 'text-green-600' : 'text-gray-300'
-              }`}>
-                <GitBranch size={14} />
+            {/* Branch Icon - Only show if branching is enabled */}
+            {!disableBranching && (
+              <div className="absolute left-0 top-0 bottom-0 w-6 flex flex-col cursor-pointer z-10">
+                {/* First row - Branch Icon */}
+                <div 
+                  className={`flex-1 flex items-center justify-center transition-colors ${
+                    isHovered ? 'bg-green-100' : ''
+                  }`}
+                  onClick={() => onBranch(messageId, unit.text)}
+                >
+                  <div className={`p-1 transition-colors ${
+                    isHovered ? 'text-green-600' : 'text-gray-300'
+                  }`}>
+                    <GitBranch size={14} />
+                  </div>
+                </div>
+                
+                {/* Second row - Branch Count */}
+                {branchCount > 0 && (
+                  <div 
+                    className={`flex-1 flex items-center justify-center transition-colors relative ${
+                      isHovered ? 'bg-blue-100' : ''
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowBranchPopup({ unitIndex: idx, unitText: unit.text });
+                    }}
+                  >
+                    <div className={`text-xs font-medium transition-colors ${
+                      isHovered ? 'text-blue-600' : 'text-gray-400'
+                    }`}>
+                      {branchCount}
+                    </div>
+                    {/* Branch Selection Popup */}
+                    {showBranchPopup && showBranchPopup.unitIndex === idx && (
+                      <div 
+                        ref={popupRef}
+                        className="absolute left-6 top-0 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-48 z-20"
+                      >
+                        <div className="px-3 py-1 text-xs font-medium text-gray-500 border-b border-gray-200">
+                          Select Branch
+                        </div>
+                        {getBranchesForText(unit.text).map((branch, branchIdx) => (
+                          <div
+                            key={branchIdx}
+                            className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onSelectBranch) {
+                                onSelectBranch(branch.id);
+                              }
+                              setShowBranchPopup(null);
+                            }}
+                          >
+                            Branch {branchIdx + 1}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
             
-            {/* Content - Allow text selection, no click handler */}
-            <div className="flex-1 min-w-0 relative"
+            {/* Content */}
+            <div className={`${disableBranching ? 'w-full' : 'pl-6'} min-w-0 relative`}
               style={{ userSelect: 'text' }}
             >
-              {unit.isCode ? (
-                <pre className="bg-gray-100 p-2 rounded overflow-auto relative">
-                  <code>{unit.text.replace(/```/g, '')}</code>
-                  {branchCount > 0 && (
-                    <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                      {branchCount} branch{branchCount > 1 ? 'es' : ''}
-                    </div>
-                  )}
-                </pre>
-              ) : (
-                <div className="relative">
-                  <MarkdownMessage content={unit.text} className="mb-0 leading-normal" />
-                  {branchCount > 0 && (
-                    <div className="absolute top-0 right-0 bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                      {branchCount} branch{branchCount > 1 ? 'es' : ''}
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {/* Hover tooltip - Only show for the specific hovered unit */}
-              {isHovered && (
-                <div className="absolute left-0 top-full mt-1 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-nowrap">
-                  Branch from here
-                </div>
-              )}
+              <div className="relative">
+                <MarkdownMessage 
+                  content={unit.text} 
+                  className={`mb-0 leading-normal ${className?.includes('branch-origin-text') ? 'branch-origin-markdown' : ''}`} 
+                />
+              </div>
             </div>
           </div>
         );

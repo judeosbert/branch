@@ -38,25 +38,6 @@
     scroll-snap-align: start;
   }
 
-  /* Prevent automatic text selection expansion */
-  .precise-select {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
-    word-break: normal;
-    word-wrap: normal;
-    white-space: pre-wrap;
-  }
-
-  /* Disable text selection expansion behaviors */
-  .precise-select * {
-    -webkit-user-select: inherit;
-    -moz-user-select: inherit;
-    -ms-user-select: inherit;
-    user-select: inherit;
-  }
-  
   .animate-slide-in {
     animation: slideIn 0.3s ease-out;
   }
@@ -187,12 +168,32 @@ body {
   hyphens: auto;
   /* Ensure all child elements respect container bounds */
   max-width: 100%;
+  /* Ensure markdown content is properly formatted without pre-formatting */
+  white-space: normal;
+  word-break: normal;
 }
 
 /* Ensure all elements within markdown content respect container bounds */
 .markdown-content * {
   max-width: 100%;
   box-sizing: border-box;
+}
+
+/* Ensure markdown formatting elements work properly */
+.markdown-content strong {
+  font-weight: 600;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+.markdown-content b {
+  font-weight: 600;
+}
+
+.markdown-content i {
+  font-style: italic;
 }
 
 .markdown-content h1 {
@@ -287,4 +288,43 @@ body {
 
 .markdown-content img {
   @apply max-w-full h-auto rounded-lg my-2;
+}
+
+/* Branch origin text styling - remove excess spacing */
+.branch-origin-text {
+  margin-bottom: 0;
+}
+
+.branch-origin-text .branchable-message {
+  margin-bottom: 0;
+}
+
+.branch-origin-text .markdown-content {
+  margin-bottom: 0 !important;
+}
+
+.branch-origin-text .markdown-content p {
+  margin-bottom: 0 !important;
+}
+
+.branch-origin-text .markdown-content p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.branch-origin-text .markdown-content > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.branch-origin-text .markdown-content * {
+  margin-bottom: 0 !important;
+}
+
+/* Branch origin markdown specific styles */
+.branch-origin-markdown {
+  margin-bottom: 0 !important;
+}
+
+.branch-origin-markdown * {
+  margin-bottom: 0 !important;
+  padding-bottom: 0 !important;
 }
