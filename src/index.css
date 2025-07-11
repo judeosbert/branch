@@ -360,3 +360,15 @@ body {
   margin-bottom: 0 !important;
   padding-bottom: 0 !important;
 }
+
+/* Breadcrumb markdown specific styles - force inline display */
+.breadcrumb-markdown {
+  display: inline;
+}
+
+.breadcrumb-markdown * {
+  display: inline !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  white-space: nowrap !important;
+}

@@ -1,4 +1,5 @@
 import { ChevronRight, MessageCircle, GitBranch, Home } from 'lucide-react';
+import MarkdownMessage from './MarkdownMessage';
 
 interface BreadcrumbItem {
   id: string;
@@ -50,9 +51,12 @@ const Breadcrumb = ({ items, onNavigate, totalBranches = 0 }: BreadcrumbProps) =
               </button>
               
               {item.branchText && (
-                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full max-w-32 truncate">
-                  "{item.branchText}"
-                </span>
+                <div className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full max-w-32 truncate overflow-hidden whitespace-nowrap">
+                  <MarkdownMessage 
+                    content={`"${item.branchText.length > 15 ? item.branchText.substring(0, 15) + '...' : item.branchText}"`}
+                    className="text-xs text-blue-600 mb-0 breadcrumb-markdown"
+                  />
+                </div>
               )}
             </div>
           ))}
