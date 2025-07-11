@@ -252,10 +252,42 @@ body {
   @apply mb-2 rounded-lg overflow-x-auto bg-gray-900 text-gray-100 p-4;
   /* Ensure pre blocks don't break layout */
   max-width: 100%;
+  position: relative;
 }
 
 .markdown-content pre code {
   @apply bg-transparent text-gray-100 p-0;
+}
+
+/* Copy button for code blocks */
+.markdown-content pre .copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #f9fafb;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background-color 0.2s;
+  backdrop-filter: blur(4px);
+}
+
+.markdown-content pre:hover .copy-button {
+  opacity: 1;
+}
+
+.markdown-content pre .copy-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.markdown-content pre .copy-button.copied {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #22c55e;
 }
 
 .markdown-content table {

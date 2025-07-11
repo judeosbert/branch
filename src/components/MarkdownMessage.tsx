@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -18,6 +18,7 @@ marked.setOptions({
 
 const MarkdownMessage = React.forwardRef<HTMLDivElement, MarkdownMessageProps>(
   ({ content, className = '', onMouseDown, onMouseUp, onDragStart }, ref) => {
+    const containerRef = useRef<HTMLDivElement>(null);
     
     // Convert markdown to HTML and sanitize it
     const htmlContent = useMemo(() => {
@@ -51,9 +52,46 @@ const MarkdownMessage = React.forwardRef<HTMLDivElement, MarkdownMessageProps>(
       }
     }, [content]);
 
+    // Add copy buttons to code blocks after rendering
+    useEffect(() => {
+      if (!containerRef.current) return;
+
+      const preElements = containerRef.current.querySelectorAll('pre');
+      
+      preElements.forEach((preElement) => {
+        // Skip if copy button already exists
+        if (preElement.querySelector('.copy-button')) return;
+        
+        const codeElement = preElement.querySelector('code');
+        if (!codeElement) return;
+
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-button';
+        copyButton.innerHTML = 'Copy';
+        copyButton.setAttribute('aria-label', 'Copy code');
+        
+        copyButton.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(codeElement.textContent || '');
+            copyButton.innerHTML = 'Copied!';
+            copyButton.classList.add('copied');
+            
+            setTimeout(() => {
+              copyButton.innerHTML = 'Copy';
+              copyButton.classList.remove('copied');
+            }, 2000);
+          } catch (err) {
+            console.error('Failed to copy code:', err);
+          }
+        });
+
+        preElement.appendChild(copyButton);
+      });
+    }, [htmlContent]);
+
     return (
       <div 
-        ref={ref}
+        ref={ref || containerRef}
         className={`markdown-content text-gray-800 leading-relaxed select-text mb-2 cursor-text ${className}`}
         onMouseDown={onMouseDown}
         onMouseUp={onMouseUp}
