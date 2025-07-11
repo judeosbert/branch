@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Key, Brain, Save, AlertCircle, Type } from 'lucide-react';
+import { versionService } from '../services/versionService';
 
 export interface SettingsConfig {
   openaiApiKey: string;
@@ -85,7 +86,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in py-8">
       <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 flex items-center justify-between">
@@ -304,9 +305,12 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
         {/* Footer */}
         <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">
           <div className="text-sm text-gray-600">
-            {hasChanges && (
-              <span className="text-amber-600">• Unsaved changes</span>
-            )}
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-xs">v{versionService.getCurrentVersion()}</span>
+              {hasChanges && (
+                <span className="text-amber-600">• Unsaved changes</span>
+              )}
+            </div>
           </div>
           <div className="flex gap-3">
             <button

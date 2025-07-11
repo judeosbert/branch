@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import ChatInterface from './components/ChatInterface';
 import { AIService } from './services/aiService';
 import { SettingsService } from './services/settingsService';
+import { versionService } from './services/versionService';
 import type { SettingsConfig } from './components/SettingsPopup';
 import { v4 as uuidv4 } from 'uuid';
 import type { ConversationBranch } from './types';
@@ -28,6 +29,7 @@ function App() {
   const handleSettingsChange = useCallback((newSettings: SettingsConfig) => {
     setSettings(newSettings);
     SettingsService.saveSettings(newSettings);
+    versionService.incrementChange(); // Track settings change
   }, []);
 
   // Load initial messages and convert to chat format
@@ -87,6 +89,9 @@ function App() {
 
   const handleSendMessage = useCallback(async (messageContent: string, branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => {
     if (isLoading) return;
+    
+    // Track message send as a change
+    versionService.incrementChange();
     
     // Add user message immediately
     const userMessage: Message = {
@@ -200,6 +205,9 @@ function App() {
   const handleCreateBranch = useCallback(async (parentMessageId: string, branchText: string) => {
     const branchId = uuidv4();
     
+    // Track branch creation as a change
+    versionService.incrementChange();
+    
     // ==================================================================================
     // CRITICAL CORE BRANCHING LOGIC - DO NOT MODIFY WITHOUT EXPLICIT REQUEST
     // ==================================================================================
@@ -258,6 +266,7 @@ function App() {
 
   const handleNavigateToBranch = useCallback((branchId: string | null) => {
     setCurrentBranchId(branchId);
+    versionService.incrementChange(); // Track branch navigation as a change
   }, []);
 
   // Filter messages based on current branch
