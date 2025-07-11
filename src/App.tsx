@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import ChatInterface from './components/ChatInterface';
+import ConversationHistorySidebar from './components/ConversationHistorySidebar';
 import { AIService } from './services/aiService';
 import { SettingsService } from './services/settingsService';
 import { versionService } from './services/versionService';
+import { conversationHistoryService, type ConversationHistory } from './services/conversationHistoryService';
 import type { SettingsConfig } from './components/SettingsPopup';
 import { v4 as uuidv4 } from 'uuid';
 import type { ConversationBranch } from './types';
@@ -21,6 +23,9 @@ function App() {
   const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [settings, setSettings] = useState<SettingsConfig>(() => SettingsService.loadSettings());
+  const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false);
+  const [conversationHistory, setConversationHistory] = useState<ConversationHistory[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   // Create AI service instance with current settings
   const aiService = new AIService(settings);
@@ -30,6 +35,23 @@ function App() {
     setSettings(newSettings);
     SettingsService.saveSettings(newSettings);
     versionService.incrementChange(); // Track settings change
+  }, []);
+
+  // Initialize conversation history
+  useEffect(() => {
+    const history = conversationHistoryService.getHistory();
+    setConversationHistory(history);
+    
+    const currentId = conversationHistoryService.getCurrentConversationId();
+    if (currentId) {
+      const currentConv = conversationHistoryService.getCurrentConversation();
+      if (currentConv) {
+        setCurrentConversationId(currentId);
+        setMessages(currentConv.messages);
+        setBranches(currentConv.branches);
+        setCurrentBranchId(currentConv.currentBranchId);
+      }
+    }
   }, []);
 
   // Load initial messages and convert to chat format
@@ -166,6 +188,18 @@ function App() {
           return branch;
         }));
       }
+      
+      // Auto-save conversation after successful AI response
+      setTimeout(() => {
+        const conversationId = conversationHistoryService.saveCurrentConversation(
+          messages.concat([userMessage, { ...aiMessage, content: accumulatedContent }]),
+          branches,
+          currentBranchId
+        );
+        setCurrentConversationId(conversationId);
+        const updatedHistory = conversationHistoryService.getHistory();
+        setConversationHistory(updatedHistory);
+      }, 100); // Small delay to ensure state is updated
     } catch (error) {
       console.error('AI service error:', error);
       
@@ -261,6 +295,19 @@ function App() {
     };
     
     setBranches(prev => [...prev, newBranch]);
+    
+    // Auto-save conversation after branch creation
+    setTimeout(() => {
+      const conversationId = conversationHistoryService.saveCurrentConversation(
+        messages,
+        [...branches, newBranch],
+        currentBranchId
+      );
+      setCurrentConversationId(conversationId);
+      const updatedHistory = conversationHistoryService.getHistory();
+      setConversationHistory(updatedHistory);
+    }, 100);
+    
     return branchId;
   }, [currentBranchId, branches, messages, generateBranchTitle]);
 
@@ -268,6 +315,51 @@ function App() {
     setCurrentBranchId(branchId);
     versionService.incrementChange(); // Track branch navigation as a change
   }, []);
+
+  // Conversation history handlers
+  const handleSelectConversation = useCallback((conversationId: string) => {
+    const conversation = conversationHistoryService.loadConversation(conversationId);
+    if (conversation) {
+      setMessages(conversation.messages);
+      setBranches(conversation.branches);
+      setCurrentBranchId(conversation.currentBranchId);
+      setCurrentConversationId(conversationId);
+      versionService.incrementChange(); // Track conversation switch
+    }
+  }, []);
+
+  const handleNewConversation = useCallback(() => {
+    const newId = conversationHistoryService.createNewConversation();
+    setMessages([]);
+    setBranches([]);
+    setCurrentBranchId(null);
+    setCurrentConversationId(newId);
+    setIsHistorySidebarOpen(false);
+    versionService.incrementChange(); // Track new conversation
+  }, []);
+
+  const handleDeleteConversation = useCallback((conversationId: string) => {
+    conversationHistoryService.deleteConversation(conversationId);
+    const updatedHistory = conversationHistoryService.getHistory();
+    setConversationHistory(updatedHistory);
+    
+    // If we deleted the current conversation, start a new one
+    if (conversationId === currentConversationId) {
+      handleNewConversation();
+    }
+  }, [currentConversationId, handleNewConversation, conversationHistory]);
+
+  const handleClearHistory = useCallback(() => {
+    if (confirm('Are you sure you want to clear all conversation history? This action cannot be undone.')) {
+      conversationHistoryService.clearHistory();
+      setConversationHistory([]);
+      handleNewConversation();
+    }
+  }, [handleNewConversation]);
+
+  const handleToggleHistorySidebar = useCallback(() => {
+    setIsHistorySidebarOpen(!isHistorySidebarOpen);
+  }, [isHistorySidebarOpen]);
 
   // Filter messages based on current branch
   const getDisplayMessages = () => {
@@ -350,17 +442,33 @@ function App() {
 
   return (
     <div className="App h-screen">
-      <ChatInterface 
-        messages={getDisplayMessages()}
-        branches={getVisibleBranches()}
-        currentBranchId={currentBranchId}
-        onSendMessage={handleSendMessage}
-        onCreateBranch={handleCreateBranch}
-        onNavigateToBranch={handleNavigateToBranch}
-        isLoading={isLoading}
-        settings={settings}
-        onSettingsChange={handleSettingsChange}
+      <ConversationHistorySidebar
+        isOpen={isHistorySidebarOpen}
+        onToggle={handleToggleHistorySidebar}
+        history={conversationHistory}
+        currentConversationId={currentConversationId}
+        onSelectConversation={handleSelectConversation}
+        onNewConversation={handleNewConversation}
+        onDeleteConversation={handleDeleteConversation}
+        onClearHistory={handleClearHistory}
       />
+      
+      <div className={`transition-all duration-300 ${isHistorySidebarOpen ? 'ml-80' : 'ml-0'}`}>
+        <ChatInterface 
+          messages={getDisplayMessages()}
+          branches={getVisibleBranches()}
+          currentBranchId={currentBranchId}
+          onSendMessage={handleSendMessage}
+          onCreateBranch={handleCreateBranch}
+          onNavigateToBranch={handleNavigateToBranch}
+          isLoading={isLoading}
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          onNewConversation={handleNewConversation}
+          isHistorySidebarOpen={isHistorySidebarOpen}
+          onToggleHistorySidebar={handleToggleHistorySidebar}
+        />
+      </div>
     </div>
   );
 }

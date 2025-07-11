@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings } from 'lucide-react';
+import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings, Plus, History } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
 import Breadcrumb from './Breadcrumb';
 import DraggableMiniMap from './DraggableMiniMap';
@@ -28,6 +28,9 @@ interface ChatInterfaceProps {
   isLoading: boolean;
   settings: SettingsConfig;
   onSettingsChange: (settings: SettingsConfig) => void;
+  onNewConversation: () => void;
+  isHistorySidebarOpen: boolean;
+  onToggleHistorySidebar: () => void;
 }
 
 const ChatInterface = ({ 
@@ -39,7 +42,10 @@ const ChatInterface = ({
   onNavigateToBranch,
   isLoading,
   settings,
-  onSettingsChange
+  onSettingsChange,
+  onNewConversation,
+  isHistorySidebarOpen,
+  onToggleHistorySidebar
 }: ChatInterfaceProps) => {
   // Create branch from line or block
   const handleLineBranch = useCallback(async (messageId: string, branchText: string) => {
@@ -329,15 +335,34 @@ const ChatInterface = ({
           <div className="flex flex-col gap-3 flex-1 min-w-0">
             {/* Title Row */}
             <div className="flex items-center gap-3">
+              {/* History Toggle Button */}
+              <button
+                onClick={onToggleHistorySidebar}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title={isHistorySidebarOpen ? 'Close History' : 'Open History'}
+              >
+                <History size={20} />
+              </button>
+              
               <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                 currentBranchId ? 'bg-gradient-to-br from-green-500 to-green-600' : 'bg-gradient-to-br from-green-500 to-green-600'
               }`}>
                 <GitBranch size={16} className="text-white" />
               </div>
               <div className="flex-1">
-                <h1 className="text-lg font-semibold text-gray-900">
-                  Branch
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-semibold text-gray-900">
+                    Branch
+                  </h1>
+                  {/* New Conversation Button - Right after Branch title */}
+                  <button
+                    onClick={onNewConversation}
+                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition-colors"
+                    title="Start New Conversation"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
                 {currentBranchId && (
                   <div className="text-sm text-green-700">
                     {(() => {
