@@ -1,13 +1,11 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
-import SelectionPopup from './SelectionPopup';
 import Breadcrumb from './Breadcrumb';
 import DraggableMiniMap from './DraggableMiniMap';
 import SettingsPopup from './SettingsPopup';
-import MarkdownMessage from './MarkdownMessage';
+import BranchableMessage from './BranchableMessage';
 import ResizableColumn from './ResizableColumn';
-import { useTextSelection } from '../hooks/useTextSelection';
 import type { ConversationBranch } from '../types';
 import type { SettingsConfig } from './SettingsPopup';
 
@@ -18,217 +16,6 @@ interface Message {
   timestamp: Date;
   branchId?: string;
 }
-
-interface ChatMessageWithBranchHighlightProps {
-  message: Message;
-  onCopy: (content: string) => void;
-  isInBranch?: boolean;
-  branches: ConversationBranch[];
-  currentBranchId: string | null;
-  onMessageContentMouseUp?: (messageId: string) => void;
-  onBranchIndicatorClick?: (messageBranches: ConversationBranch[]) => void;
-}
-
-const ChatMessageWithBranchHighlight = ({ 
-  message, 
-  onCopy, 
-  isInBranch, 
-  branches,
-  currentBranchId,
-  onMessageContentMouseUp,
-  onBranchIndicatorClick
-}: ChatMessageWithBranchHighlightProps) => {
-  const isUser = message.sender === 'user';
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [isSelecting, setIsSelecting] = useState(false);
-  
-  // Find if this message has branches created from it
-  const messageBranches = useMemo(() => 
-    branches.filter(b => b.parentMessageId === message.id), 
-    [branches, message.id]
-  );
-  
-  // Simple approach: render plain text during selection, highlighted text when not selecting
-  const shouldShowHighlights = !isSelecting && messageBranches.length > 0;
-  
-  const highlightedContent = useMemo(() => {
-    if (!shouldShowHighlights) {
-      return message.content; // Plain text during selection
-    }
-    
-    let content = message.content;
-    messageBranches.forEach(branch => {
-      const branchText = branch.branchText;
-      if (branchText && content.includes(branchText)) {
-        const isCurrentBranch = currentBranchId === branch.id;
-        const highlightClass = isCurrentBranch 
-          ? 'bg-green-200 text-green-800 px-1 py-0.5 rounded border border-green-300'
-          : 'bg-green-100 text-green-700 px-1 py-0.5 rounded border border-green-200';
-        
-        content = content.replace(
-          branchText,
-          `<span class="${highlightClass}">${branchText}</span>`
-        );
-      }
-    });
-    
-    return content;
-  }, [message.content, messageBranches, currentBranchId, shouldShowHighlights]);
-
-  // Simplified mouse handlers - let browser handle selection naturally
-  const handleMouseDown = useCallback(() => {
-    setIsSelecting(true);
-    // Don't interfere with browser's natural selection process
-  }, []);
-
-  const handleMouseUp = useCallback(() => {
-    // Check for selection after a small delay
-    setTimeout(() => {
-      const selection = window.getSelection();
-      
-      if (selection && selection.toString().trim().length > 0) {
-        // Only trigger if selection is within this message
-        const range = selection.getRangeAt(0);
-        const contentElement = contentRef.current;
-        
-        if (contentElement && contentElement.contains(range.commonAncestorContainer)) {
-          onMessageContentMouseUp?.(message.id);
-        }
-      }
-      
-      // Reset selection state
-      setTimeout(() => {
-        setIsSelecting(false);
-      }, 100);
-    }, 30);
-  }, [onMessageContentMouseUp, message.id]);
-
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    // Only prevent drag if it's not part of text selection
-    if (!isSelecting) {
-      e.preventDefault();
-    }
-  }, [isSelecting]);
-  
-  return (
-    <div className={`flex gap-3 p-3 ${isUser ? 'bg-white' : 'bg-gray-50'} ${isInBranch ? 'border-l-4 border-green-300' : ''}`}>
-      {/* Avatar */}
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-        isUser ? 'bg-blue-500 text-white' : 'bg-green-500 text-white'
-      }`}>
-        {isUser ? <User size={16} /> : <Bot size={16} />}
-      </div>
-      
-      {/* Message Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-medium text-gray-900">
-            {isUser ? 'You' : 'Branch AI'}
-          </span>
-          <span className="text-xs text-gray-500">
-            {message.timestamp.toLocaleTimeString()}
-          </span>
-          {isInBranch && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-              Branch
-            </span>
-          )}
-          {messageBranches.length > 0 && (
-            <button
-              onClick={() => onBranchIndicatorClick?.(messageBranches)}
-              className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 transition-all duration-200 ${
-                messageBranches.length === 1 
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-md transform hover:scale-105' 
-                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200 hover:shadow-md transform hover:scale-105'
-              }`}
-              title={`Click to ${messageBranches.length === 1 ? 'open branch' : 'select from ' + messageBranches.length + ' branches'}`}
-            >
-              <GitBranch size={10} />
-              {messageBranches.length} branch{messageBranches.length > 1 ? 'es' : ''}
-              {messageBranches.length > 1 && <span className="ml-1 text-xs">📋</span>}
-            </button>
-          )}
-        </div>
-        
-        <div className="max-w-none">
-          {shouldShowHighlights ? (
-            <div 
-              ref={contentRef}
-              className="text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-2 cursor-text precise-select"
-              dangerouslySetInnerHTML={{ __html: highlightedContent }}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onDragStart={handleDragStart}
-            />
-          ) : isUser ? (
-            <div 
-              ref={contentRef}
-              className={`text-gray-800 leading-relaxed whitespace-pre-wrap select-text mb-2 cursor-text precise-select ${
-                !isUser && message.content && message.content.length > 0 && message.content.length < 100 
-                  ? 'transition-all duration-300 ease-out' 
-                  : ''
-              }`}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onDragStart={handleDragStart}
-            >
-              {message.content}
-            </div>
-          ) : (
-            <MarkdownMessage
-              ref={contentRef}
-              content={message.content || ''}
-              className={`${
-                !isUser && message.content && message.content.length > 0 && message.content.length < 100 
-                  ? 'transition-all duration-300 ease-out' 
-                  : ''
-              }`}
-              onMouseDown={handleMouseDown}
-              onMouseUp={handleMouseUp}
-              onDragStart={handleDragStart}
-            />
-          )}
-          
-          {!isUser && message.content === '' && (
-            <div className="flex items-center gap-2 text-gray-500 mb-2">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-              </div>
-              <span className="text-sm">AI is typing...</span>
-              <span className="animate-pulse text-lg font-bold">|</span>
-            </div>
-          )}
-        </div>
-        
-        {!isUser && (
-          <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onCopy(message.content)}
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-              title="Copy message"
-            >
-              <Copy size={14} />
-            </button>
-            <button
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-              title="Good response"
-            >
-              <ThumbsUp size={14} />
-            </button>
-            <button
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-colors"
-              title="Bad response"
-            >
-              <ThumbsDown size={14} />
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
 
 interface ChatInterfaceProps {
   onSendMessage: (message: string, branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => void;
@@ -253,30 +40,39 @@ const ChatInterface = ({
   settings,
   onSettingsChange
 }: ChatInterfaceProps) => {
+  // Create branch from line or block
+  const handleLineBranch = useCallback(async (messageId: string, branchText: string) => {
+    try {
+      const branchId = await onCreateBranch(messageId, branchText);
+      onNavigateToBranch(branchId);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [onCreateBranch, onNavigateToBranch]);
   const [inputValue, setInputValue] = useState('');
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const [lastCompletedMessageId, setLastCompletedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const branchTextareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollTimeoutRef = useRef<number | null>(null);
-  const { selection, clearSelection } = useTextSelection();
+  const prevIsLoadingRef = useRef(isLoading);
 
   // Auto scroll to bottom when new messages arrive - but respect user scrolling
   useEffect(() => {
-    // Only auto-scroll if user hasn't manually scrolled away and we're loading/generating
+    // Only auto-scroll during loading, not when it finishes
     const scrollToBottom = () => {
-      if (userHasScrolled) return; // Don't auto-scroll if user has manually scrolled
+      if (userHasScrolled || !isLoading) return; // Don't auto-scroll if user has manually scrolled OR if loading just finished
       
       if (currentBranchId && branchMessagesEndRef.current) {
         const container = branchMessagesEndRef.current.parentElement;
         if (container) {
           const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 150;
-          if (isNearBottom || isLoading) {
+          if (isNearBottom) {
             branchMessagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
           }
         }
@@ -284,19 +80,41 @@ const ChatInterface = ({
         const container = messagesEndRef.current.parentElement;
         if (container) {
           const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 150;
-          if (isNearBottom || isLoading) {
+          if (isNearBottom) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
           }
         }
       }
     };
 
-    // Only auto-scroll during loading or when new messages arrive
-    if (isLoading || messages.length > 0) {
+    // Only auto-scroll during loading
+    if (isLoading) {
       const timeoutId = setTimeout(scrollToBottom, 100);
       return () => clearTimeout(timeoutId);
     }
   }, [messages.length, currentBranchId, isLoading, userHasScrolled]);
+
+  // Detect when streaming just completed and trigger flash effect
+  useEffect(() => {
+    const wasLoading = prevIsLoadingRef.current;
+    const isNowComplete = wasLoading && !isLoading;
+    
+    if (isNowComplete && messages.length > 0) {
+      // Find the last message to flash
+      const lastMessage = currentBranchId 
+        ? messages.filter(m => m.branchId === currentBranchId).pop()
+        : messages.filter(m => !m.branchId).pop();
+      
+      if (lastMessage && lastMessage.sender === 'assistant') {
+        setLastCompletedMessageId(lastMessage.id);
+        // Clear the flash after animation completes
+        setTimeout(() => setLastCompletedMessageId(null), 1500);
+      }
+    }
+    
+    // Update the ref at the end to avoid multiple triggers
+    prevIsLoadingRef.current = isLoading;
+  }, [isLoading, currentBranchId]); // Removed messages dependency to prevent multiple triggers
 
   // Reset user scroll state when new conversation starts or branch changes
   useEffect(() => {
@@ -383,20 +201,6 @@ const ChatInterface = ({
     navigator.clipboard.writeText(content);
   };
 
-  // Handle branch creation
-  const handleBranch = async () => {
-    if (selection && selectedMessageId) {
-      try {
-        const branchId = await onCreateBranch(selectedMessageId, selection.text);
-        onNavigateToBranch(branchId);
-        clearSelection();
-        setSelectedMessageId(null);
-      } catch (error) {
-        console.error('Error creating branch:', error);
-      }
-    }
-  };
-
   // Build breadcrumb items
   const getBreadcrumbs = () => {
     const items: Array<{ id: string; label: string; type: 'main' | 'branch'; branchText?: string; depth?: number }> = [
@@ -430,39 +234,6 @@ const ChatInterface = ({
     }
     
     return items;
-  };
-
-  // Handle message selection for branching
-  const handleMessageMouseUp = (messageId: string) => {
-    // Only set selected message if there's an actual selection
-    const currentSelection = window.getSelection();
-    if (selection && currentSelection && currentSelection.toString().trim()) {
-      setSelectedMessageId(messageId);
-    }
-  };
-
-  // Handle branch indicator click
-  const handleBranchIndicatorClick = (messageBranches: ConversationBranch[]) => {
-    if (messageBranches.length === 1) {
-      // Single branch: automatically navigate to it
-      const branchId = messageBranches[0].id;
-      onNavigateToBranch(branchId);
-      
-      // Scroll the column container to show the branch column with smooth animation
-      setTimeout(() => {
-        const columnContainer = document.querySelector('.column-scroll');
-        if (columnContainer) {
-          const columnWidth = 384; // w-96 = 384px
-          columnContainer.scrollTo({
-            left: columnWidth,
-            behavior: 'smooth'
-          });
-        }
-      }, 100);
-    } else {
-      // Multiple branches: show MiniMap if not already visible
-      setIsMiniMapVisible(true);
-    }
   };
 
   // Helper functions for column width management
@@ -654,22 +425,37 @@ const ChatInterface = ({
               ) : (
                 <div className={`${branches.length === 0 ? 'max-w-4xl mx-auto' : ''}`}>
                   <div className="divide-y divide-gray-100">
-                    {messages.filter(msg => !msg.branchId).map((message) => (
-                      <div 
-                        key={message.id} 
-                        className="group"
-                      >
-                        <ChatMessageWithBranchHighlight
-                          message={message} 
-                          onCopy={handleCopy}
-                          isInBranch={false}
-                          branches={branches}
-                          currentBranchId={currentBranchId}
-                          onMessageContentMouseUp={handleMessageMouseUp}
-                          onBranchIndicatorClick={handleBranchIndicatorClick}
-                        />
-                      </div>
-                    ))}
+                    {messages.filter(msg => !msg.branchId).map((message) => {
+                      const isFlashing = lastCompletedMessageId === message.id;
+                      return (
+                        <div key={message.id} className={`flex items-start gap-3 py-2 group transition-all duration-700 ${
+                          isFlashing ? 'bg-green-100' : ''
+                        }`}>
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                            {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
+                          </div>
+                          <div className="flex-1 relative">
+                            <BranchableMessage
+                              content={message.content}
+                              messageId={message.id}
+                              onBranch={handleLineBranch}
+                              branches={branches}
+                            />
+                            <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleCopy(message.content)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Copy message">
+                                <Copy size={14} />
+                              </button>
+                              <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Good response">
+                                <ThumbsUp size={14} />
+                              </button>
+                              <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Bad response">
+                                <ThumbsDown size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                     {isLoading && !currentBranchId && (
                       <div className="flex gap-3 p-3 bg-gray-50">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
@@ -831,31 +617,35 @@ const ChatInterface = ({
                         </div>
                       )}
                       
-                      {branchMessages.map((message) => (
-                        <div 
-                          key={message.id} 
-                          className="group relative"
-                        >
-                          <ChatMessageWithBranchHighlight
-                            message={message} 
-                            onCopy={handleCopy}
-                            isInBranch={true}
-                            branches={branches}
-                            currentBranchId={currentBranchId}
-                            onMessageContentMouseUp={handleMessageMouseUp}
-                            onBranchIndicatorClick={handleBranchIndicatorClick}
-                          />
-                          {/* Branch point indicator for nested branches */}
-                          {(() => {
-                            const nestedBranches = branches.filter(b => b.parentMessageId === message.id);
-                            return nestedBranches.length > 0 && (
-                              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                                {nestedBranches.length} Branch{nestedBranches.length > 1 ? 'es' : ''}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      ))}
+                      {branchMessages.map((message) => {
+                        const isFlashing = lastCompletedMessageId === message.id;
+                        return (
+                          <div key={message.id} className={`flex items-start gap-3 py-1 group transition-all duration-700 ${
+                            isFlashing ? 'bg-green-100' : ''
+                          }`}>
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                              {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
+                            </div>
+                            <div className="flex-1 relative">
+                              <BranchableMessage
+                                content={message.content}
+                                messageId={message.id}
+                                onBranch={handleLineBranch}
+                                branches={branches}
+                              />
+                              {/* nested branches indicator */}
+                              {(() => {
+                                const nestedBranches = branches.filter(b => b.parentMessageId === message.id);
+                                return nestedBranches.length > 0 && (
+                                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                    {nestedBranches.length} Branch{nestedBranches.length > 1 ? 'es' : ''}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        );
+                      })}
                       {isCurrentBranch && isLoading && (
                         <div className="flex gap-3 p-3 bg-gray-50">
                           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
@@ -918,19 +708,6 @@ const ChatInterface = ({
           })()}
         </div>
       </div>
-      
-      {/* Selection Popup */}
-      {selection && selectedMessageId && (
-        <SelectionPopup
-          selectedText={selection.text}
-          position={{ x: selection.rect.left, y: selection.rect.top }}
-          onBranch={handleBranch}
-          onClose={() => {
-            clearSelection();
-            setSelectedMessageId(null);
-          }}
-        />
-      )}
       
       {/* Settings Popup */}
       <SettingsPopup
