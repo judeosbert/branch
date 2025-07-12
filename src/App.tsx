@@ -441,7 +441,7 @@ function App() {
   };
 
   return (
-    <div className="App h-screen">
+    <div className="App h-screen w-screen overflow-hidden max-w-full" style={{ maxWidth: '100vw' }}>
       <ConversationHistorySidebar
         isOpen={isHistorySidebarOpen}
         onToggle={handleToggleHistorySidebar}
@@ -453,7 +453,7 @@ function App() {
         onClearHistory={handleClearHistory}
       />
       
-      <div className={`transition-all duration-300 ${isHistorySidebarOpen ? 'ml-80' : 'ml-0'}`}>
+      <div className={`h-full transition-all duration-300 ${isHistorySidebarOpen ? 'ml-80' : 'ml-0'} max-w-full overflow-hidden`} style={{ maxWidth: isHistorySidebarOpen ? 'calc(100vw - 320px)' : '100vw' }}>
         <ChatInterface 
           messages={getDisplayMessages()}
           branches={getVisibleBranches()}

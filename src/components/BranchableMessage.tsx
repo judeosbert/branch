@@ -85,7 +85,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
   };
 
   return (
-    <div className={`branchable-message leading-normal ${className || ''}`}>
+    <div className={`branchable-message leading-normal max-w-full overflow-hidden ${className || ''}`} style={{ maxWidth: '100%' }}>
       {units.map((unit, idx) => {
         const branchCount = getBranchCount(unit.text);
         const isHovered = hoveredUnit === idx;
@@ -93,7 +93,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
         return (
           <div 
             key={idx} 
-            className={`relative flex leading-normal rounded-md transition-all duration-200 mb-2 ${
+            className={`relative flex leading-normal rounded-md transition-all duration-200 mb-2 max-w-full ${
               !disableBranching && isHovered ? 'bg-blue-50' : ''
             }`}
             onMouseEnter={!disableBranching ? () => setHoveredUnit(idx) : undefined}
