@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Maximize2, GitBranch } from 'lucide-react';
-import MiniMap from './MiniMap';
+import EnhancedMiniMap from './EnhancedMiniMap';
 import type { ConversationBranch } from '../types';
 
 interface DraggableMiniMapProps {
@@ -82,10 +82,10 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
     }
   }, []);
 
-  // Handle outside click to close minimap
+  // Handle outside click to close minimap (only in mini mode)
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (miniMapRef.current && !miniMapRef.current.contains(event.target as Node) && !isDragging) {
+      if (!isExpanded && miniMapRef.current && !miniMapRef.current.contains(event.target as Node) && !isDragging) {
         onClose();
       }
     };
@@ -94,7 +94,21 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [onClose, isDragging]);
+  }, [onClose, isDragging, isExpanded]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isExpanded) {
+        setIsExpanded(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscKey);
+    return () => {
+      document.removeEventListener('keydown', handleEscKey);
+    };
+  }, [isExpanded]);
 
   // Corner snapping logic
   const snapToCorner = useCallback((x: number, y: number): Position => {
@@ -240,6 +254,63 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
 
   const size = isExpanded ? expandedSize : miniSize;
 
+  // Modal overlay when expanded
+  if (isExpanded) {
+    return (
+      <>
+        {/* Modal Backdrop */}
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          {/* Modal Content */}
+          <div
+            className="bg-white rounded-lg shadow-2xl border border-gray-200 w-full max-w-4xl h-full max-h-[80vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-t-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <GitBranch size={20} />
+                <span className="text-lg font-medium">Branch Map - Full View</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="p-2 hover:bg-white hover:bg-opacity-20 rounded transition-colors"
+                  title="Minimize"
+                >
+                  <Maximize2 size={16} />
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 hover:bg-white hover:bg-opacity-20 rounded transition-colors"
+                  title="Close"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Map Content - Full ComfyUI-style experience */}
+            <div className="flex-1 overflow-hidden relative">
+              <EnhancedMiniMap
+                branches={branches}
+                currentBranchId={currentBranchId}
+                onNavigateToBranch={onNavigateToBranch}
+                onToggleFullView={() => {}} // No-op since we're already in full view
+                isFullView={true}
+                totalMessages={totalMessages}
+                hideHeader={true}
+              />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Regular mini mode
   return (
     <div
       ref={miniMapRef}
@@ -253,11 +324,11 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
         height: size,
       }}
     >
-      {/* Draggable Header */}
+      {/* Mini Mode Header */}
       <div
         className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 rounded-t-lg cursor-grab active:cursor-grabbing flex items-center justify-between select-none"
         onMouseDown={handleMouseDown}
-        onDragStart={(e) => e.preventDefault()} // Prevent text selection
+        onDragStart={(e) => e.preventDefault()}
       >
         <div className="flex items-center gap-2">
           <GitBranch size={16} />
@@ -267,10 +338,10 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setIsExpanded(!isExpanded);
+              setIsExpanded(true);
             }}
             className="p-1 hover:bg-white hover:bg-opacity-20 rounded transition-colors"
-            title={isExpanded ? "Minimize" : "Expand"}
+            title="Expand"
           >
             <Maximize2 size={14} />
           </button>
@@ -287,14 +358,14 @@ const DraggableMiniMap: React.FC<DraggableMiniMapProps> = ({
         </div>
       </div>
 
-      {/* MiniMap Content */}
+      {/* Mini Mode Content */}
       <div className="flex-1 overflow-hidden" style={{ height: size - 52 }}>
-        <MiniMap
+        <EnhancedMiniMap
           branches={branches}
           currentBranchId={currentBranchId}
           onNavigateToBranch={onNavigateToBranch}
-          onToggleFullView={() => setIsExpanded(!isExpanded)}
-          isFullView={isExpanded}
+          onToggleFullView={() => setIsExpanded(true)}
+          isFullView={false}
           totalMessages={totalMessages}
           hideHeader={true}
         />
