@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Key, Brain, Save, AlertCircle, Type, CheckCircle, Wifi } from 'lucide-react';
+import { X, Key, Brain, AlertCircle, Type, CheckCircle, Wifi } from 'lucide-react';
 import { versionService } from '../services/versionService';
 import { EnhancedAIService } from '../services/enhancedAIService';
 
@@ -32,7 +32,6 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   const [apiKey, setApiKey] = useState(currentSettings.openaiApiKey);
   const [selectedEngine, setSelectedEngine] = useState(currentSettings.aiEngine);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
   const [useTextArea, setUseTextArea] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -57,21 +56,14 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   useEffect(() => {
     setApiKey(currentSettings.openaiApiKey);
     setSelectedEngine(currentSettings.aiEngine);
-    setHasChanges(false);
   }, [currentSettings, isOpen]);
 
-  useEffect(() => {
-    const hasApiKeyChange = apiKey !== currentSettings.openaiApiKey;
-    const hasEngineChange = selectedEngine !== currentSettings.aiEngine;
-    setHasChanges(hasApiKeyChange || hasEngineChange);
+  // Handle immediate model selection change with persistence
+  const handleEngineChange = (newEngine: SettingsConfig['aiEngine']) => {
+    setSelectedEngine(newEngine);
+    setConnectionResult(null);
     
-    // Reset connection result when settings change
-    if (hasApiKeyChange || hasEngineChange) {
-      setConnectionResult(null);
-    }
-  }, [apiKey, selectedEngine, currentSettings]);
-
-  const handleSave = () => {
+    // Immediately save the engine selection to localStorage
     const modelMap = {
       'openai-gpt4o': 'gpt-4o',
       'openai-gpt4': 'gpt-4',
@@ -79,18 +71,41 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
       'mock': 'mock'
     };
 
-    onSave({
+    const updatedSettings = {
       openaiApiKey: apiKey,
+      aiEngine: newEngine,
+      model: modelMap[newEngine]
+    };
+
+    console.log('🔄 Engine changed to:', newEngine, 'Model:', modelMap[newEngine]);
+    onSave(updatedSettings);
+  };
+
+  // Handle immediate API key change with persistence
+  const handleApiKeyChange = (newApiKey: string) => {
+    setApiKey(newApiKey);
+    
+    // Immediately save the API key to localStorage
+    const modelMap = {
+      'openai-gpt4o': 'gpt-4o',
+      'openai-gpt4': 'gpt-4',
+      'openai-gpt3.5': 'gpt-3.5-turbo',
+      'mock': 'mock'
+    };
+
+    const updatedSettings = {
+      openaiApiKey: newApiKey,
       aiEngine: selectedEngine,
       model: modelMap[selectedEngine]
-    });
-    onClose();
+    };
+
+    console.log('🔑 API key updated and auto-saved');
+    onSave(updatedSettings);
   };
 
   const handleCancel = () => {
     setApiKey(currentSettings.openaiApiKey);
     setSelectedEngine(currentSettings.aiEngine);
-    setHasChanges(false);
     setConnectionResult(null);
     onClose();
   };
@@ -194,21 +209,21 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                         e.stopPropagation();
                         const pastedText = e.clipboardData?.getData('text') || '';
                         if (pastedText) {
-                          setApiKey(pastedText.trim());
+                          handleApiKeyChange(pastedText.trim());
                         }
                       });
                     }
                   }}
                   type={showApiKey ? 'text' : 'password'}
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
                   onKeyDown={(e) => {
                     // Handle Ctrl+V / Cmd+V explicitly
                     if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
                       e.preventDefault();
                       navigator.clipboard.readText().then(text => {
                         if (text) {
-                          setApiKey(text.trim());
+                          handleApiKeyChange(text.trim());
                         }
                       }).catch(() => {
                         // Fallback - let the browser handle it normally
@@ -231,7 +246,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                       try {
                         const text = await navigator.clipboard.readText();
                         if (text) {
-                          setApiKey(text.trim());
+                          handleApiKeyChange(text.trim());
                         }
                       } catch (err) {
                         console.warn('Could not read clipboard:', err);
@@ -257,7 +272,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
               <div className="space-y-2">
                 <textarea
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  onChange={(e) => handleApiKeyChange(e.target.value)}
                   placeholder="Paste your OpenAI API key here (sk-...)"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   autoComplete="off"
@@ -365,7 +380,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                     name="aiEngine"
                     value={engine.value}
                     checked={selectedEngine === engine.value}
-                    onChange={(e) => setSelectedEngine(e.target.value as SettingsConfig['aiEngine'])}
+                    onChange={(e) => handleEngineChange(e.target.value as SettingsConfig['aiEngine'])}
                     className="mt-1 text-blue-500"
                   />
                   <div className="flex-1">
@@ -389,9 +404,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
           <div className="text-sm text-gray-600">
             <div className="flex items-center gap-4">
               <span className="font-mono text-xs">v{versionService.getCurrentVersion()}</span>
-              {hasChanges && (
-                <span className="text-amber-600">• Unsaved changes</span>
-              )}
+              <span className="text-green-600">• Auto-save enabled</span>
             </div>
           </div>
           <div className="flex gap-3">
@@ -399,15 +412,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
               onClick={handleCancel}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium transition-colors"
             >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!hasChanges}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-            >
-              <Save size={16} />
-              Save Settings
+              Close
             </button>
           </div>
         </div>

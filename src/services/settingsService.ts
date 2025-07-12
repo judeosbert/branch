@@ -4,8 +4,8 @@ const STORAGE_KEY = 'comfy-chat-settings';
 
 const DEFAULT_SETTINGS: SettingsConfig = {
   openaiApiKey: '',
-  aiEngine: 'mock',
-  model: 'mock'
+  aiEngine: 'openai-gpt3.5',
+  model: 'gpt-3.5-turbo'
 };
 
 export class SettingsService {
@@ -14,23 +14,47 @@ export class SettingsService {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        return {
+        const merged = {
           ...DEFAULT_SETTINGS,
           ...parsed
         };
+        
+        // Ensure model is properly set based on aiEngine
+        merged.model = this.getModelForEngine(merged.aiEngine);
+        console.log('🔧 Settings loaded from localStorage:', merged);
+        
+        return merged;
       }
     } catch (error) {
       console.warn('Failed to load settings from localStorage:', error);
     }
+    console.log('🆕 Using default settings');
     return DEFAULT_SETTINGS;
   }
 
   static saveSettings(settings: SettingsConfig): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      // Ensure model is synced with aiEngine before saving
+      const settingsToSave = {
+        ...settings,
+        model: this.getModelForEngine(settings.aiEngine)
+      };
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settingsToSave));
+      console.log('💾 Settings saved to localStorage:', settingsToSave);
     } catch (error) {
       console.error('Failed to save settings to localStorage:', error);
     }
+  }
+
+  static getModelForEngine(engine: SettingsConfig['aiEngine']): string {
+    const modelMap = {
+      'openai-gpt4o': 'gpt-4o',
+      'openai-gpt4': 'gpt-4',
+      'openai-gpt3.5': 'gpt-3.5-turbo',
+      'mock': 'mock'
+    };
+    return modelMap[engine] || 'gpt-3.5-turbo';
   }
 
   static clearSettings(): void {

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persistent Model Selection - localStorage Implementation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #00aa00;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+        .code-block {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-left: 4px solid #3b82f6;
+            overflow-x: auto;
+        }
+        .model-selector {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .model-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            margin: 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .model-option:hover {
+            border-color: #3b82f6;
+            background: #f8fafc;
+        }
+        .model-option.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .model-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+        }
+        .model-info {
+            flex: 1;
+        }
+        .model-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .model-desc {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .current-settings {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .curl-demo {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧠 Branch - Persistent Model Selection</h1>
+    
+    <div class="status">
+        <h2>✅ Implementation Complete</h2>
+        <div class="test-item success">
+            <strong>🎯 Fixed Issue:</strong> Model selection now persists using localStorage
+        </div>
+        <div class="test-item success">
+            <strong>🔧 Default Model:</strong> Changed from 'mock' to 'gpt-3.5-turbo'
+        </div>
+        <div class="test-item success">
+            <strong>💾 Auto-Save:</strong> Model selection saves immediately when changed
+        </div>
+        <div class="test-item success">
+            <strong>🔄 Auto-Sync:</strong> Model and aiEngine stay synchronized
+        </div>
+    </div>
+
+    <div class="model-selector">
+        <h3>Select AI Model (Persistent)</h3>
+        <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px;">
+            Your selection will be saved to localStorage and restored on next visit
+        </p>
+        
+        <div class="model-option" data-engine="openai-gpt4o" data-model="gpt-4o">
+            <input type="radio" name="model" value="openai-gpt4o">
+            <div class="model-info">
+                <div class="model-name">GPT-4o (Latest)</div>
+                <div class="model-desc">Most capable model</div>
+            </div>
+        </div>
+        
+        <div class="model-option" data-engine="openai-gpt4" data-model="gpt-4">
+            <input type="radio" name="model" value="openai-gpt4">
+            <div class="model-info">
+                <div class="model-name">GPT-4</div>
+                <div class="model-desc">Advanced reasoning</div>
+            </div>
+        </div>
+        
+        <div class="model-option selected" data-engine="openai-gpt3.5" data-model="gpt-3.5-turbo">
+            <input type="radio" name="model" value="openai-gpt3.5" checked>
+            <div class="model-info">
+                <div class="model-name">GPT-3.5 Turbo (Default)</div>
+                <div class="model-desc">Fast and efficient</div>
+            </div>
+        </div>
+        
+        <div class="model-option" data-engine="mock" data-model="mock">
+            <input type="radio" name="model" value="mock">
+            <div class="model-info">
+                <div class="model-name">Mock AI (Demo)</div>
+                <div class="model-desc">For testing without API key</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="current-settings">
+        <h4>Current Settings (from localStorage)</h4>
+        <div id="currentSettingsDisplay">
+            <strong>AI Engine:</strong> <span id="currentEngine">openai-gpt3.5</span><br>
+            <strong>Model:</strong> <span id="currentModel">gpt-3.5-turbo</span><br>
+            <strong>Storage Key:</strong> comfy-chat-settings
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>🔧 Technical Implementation</h2>
+        
+        <div class="test-item">
+            <strong>SettingsService Updates:</strong>
+            <div class="code-block">
+// Default settings now use real AI model
+const DEFAULT_SETTINGS: SettingsConfig = {
+  openaiApiKey: '',
+  aiEngine: 'openai-gpt3.5',
+  model: 'gpt-3.5-turbo'  // Instead of 'mock'
+};
+
+// Auto-sync model with aiEngine
+static getModelForEngine(engine: SettingsConfig['aiEngine']): string {
+  const modelMap = {
+    'openai-gpt4o': 'gpt-4o',
+    'openai-gpt4': 'gpt-4',
+    'openai-gpt3.5': 'gpt-3.5-turbo',
+    'mock': 'mock'
+  };
+  return modelMap[engine] || 'gpt-3.5-turbo';
+}
+            </div>
+        </div>
+
+        <div class="test-item">
+            <strong>SettingsPopup Immediate Persistence:</strong>
+            <div class="code-block">
+const handleEngineChange = (newEngine: SettingsConfig['aiEngine']) => {
+  setSelectedEngine(newEngine);
+  
+  // Immediately save to localStorage
+  const updatedSettings = {
+    openaiApiKey: apiKey,
+    aiEngine: newEngine,
+    model: modelMap[newEngine]
+  };
+  
+  console.log('🔄 Engine changed to:', newEngine);
+  onSave(updatedSettings); // Triggers localStorage save
+};
+            </div>
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>🚫 Previous Issue - Fixed</h2>
+        <div class="test-item error">
+            <strong>❌ Before:</strong> cURL was sending "model":"mock"
+            <div class="curl-demo">
+{
+  "model": "mock",  // ❌ Invalid for OpenAI API
+  "messages": [...],
+  "stream": true
+}
+            </div>
+        </div>
+        
+        <div class="test-item success">
+            <strong>✅ After:</strong> cURL now sends proper OpenAI model
+            <div class="curl-demo">
+{
+  "model": "gpt-3.5-turbo",  // ✅ Valid OpenAI model
+  "messages": [...],
+  "stream": true
+}
+            </div>
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>🎯 Benefits</h2>
+        <div class="test-item success">
+            <strong>✅ User Experience:</strong> Model preference remembers across sessions
+        </div>
+        <div class="test-item success">
+            <strong>✅ API Compatibility:</strong> Sends correct model names to OpenAI
+        </div>
+        <div class="test-item success">
+            <strong>✅ Default Behavior:</strong> Starts with real AI instead of mock
+        </div>
+        <div class="test-item success">
+            <strong>✅ Error Prevention:</strong> No more invalid model API calls
+        </div>
+        <div class="test-item success">
+            <strong>✅ Immediate Feedback:</strong> Settings save without clicking "Save"
+        </div>
+    </div>
+
+    <button class="button" onclick="clearStorage()">Clear localStorage (Reset)</button>
+    <button class="button" onclick="showStorageContent()">Show localStorage Content</button>
+    <button class="button" onclick="testAPICall()">Simulate API Call</button>
+
+    <div id="output" style="margin-top: 20px;"></div>
+
+    <script>
+        const STORAGE_KEY = 'comfy-chat-settings';
+        
+        // Model mapping
+        const modelMap = {
+            'openai-gpt4o': 'gpt-4o',
+            'openai-gpt4': 'gpt-4',
+            'openai-gpt3.5': 'gpt-3.5-turbo',
+            'mock': 'mock'
+        };
+
+        // Load settings from localStorage
+        function loadSettings() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (stored) {
+                    const settings = JSON.parse(stored);
+                    console.log('📦 Loaded settings:', settings);
+                    return settings;
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+            
+            // Return defaults
+            return {
+                openaiApiKey: '',
+                aiEngine: 'openai-gpt3.5',
+                model: 'gpt-3.5-turbo'
+            };
+        }
+
+        // Save settings to localStorage
+        function saveSettings(settings) {
+            try {
+                // Ensure model is synced with engine
+                settings.model = modelMap[settings.aiEngine] || 'gpt-3.5-turbo';
+                
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+                console.log('💾 Saved settings:', settings);
+                updateDisplay(settings);
+                return true;
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                return false;
+            }
+        }
+
+        // Update current settings display
+        function updateDisplay(settings) {
+            document.getElementById('currentEngine').textContent = settings.aiEngine;
+            document.getElementById('currentModel').textContent = settings.model;
+            
+            // Update radio button
+            const radios = document.querySelectorAll('input[name="model"]');
+            radios.forEach(radio => {
+                radio.checked = radio.value === settings.aiEngine;
+                radio.closest('.model-option').classList.toggle('selected', radio.checked);
+            });
+        }
+
+        // Handle model selection change
+        function handleModelChange(event) {
+            const selectedEngine = event.target.value;
+            const selectedModel = modelMap[selectedEngine];
+            
+            const settings = {
+                ...loadSettings(),
+                aiEngine: selectedEngine,
+                model: selectedModel
+            };
+            
+            saveSettings(settings);
+            
+            // Show feedback
+            showOutput(`🔄 Model changed to: ${selectedEngine} → ${selectedModel}`, 'success');
+        }
+
+        // Clear localStorage
+        function clearStorage() {
+            localStorage.removeItem(STORAGE_KEY);
+            showOutput('🗑️ localStorage cleared - settings reset to defaults', 'warning');
+            
+            // Reset to defaults
+            const defaults = {
+                openaiApiKey: '',
+                aiEngine: 'openai-gpt3.5',
+                model: 'gpt-3.5-turbo'
+            };
+            updateDisplay(defaults);
+        }
+
+        // Show localStorage content
+        function showStorageContent() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const settings = JSON.parse(stored);
+                showOutput(`📦 localStorage content:\n${JSON.stringify(settings, null, 2)}`, 'info');
+            } else {
+                showOutput('📦 No settings found in localStorage', 'warning');
+            }
+        }
+
+        // Simulate API call with current model
+        function testAPICall() {
+            const settings = loadSettings();
+            const apiCall = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer YOUR_API_KEY'
+                },
+                body: {
+                    model: settings.model,  // ✅ Now uses correct model
+                    messages: [
+                        { role: 'user', content: 'Hello!' }
+                    ],
+                    stream: true
+                }
+            };
+            
+            showOutput(`🌐 API Call would use model: "${settings.model}"\n\n${JSON.stringify(apiCall.body, null, 2)}`, 'success');
+        }
+
+        // Show output messages
+        function showOutput(message, type = 'info') {
+            const output = document.getElementById('output');
+            const className = {
+                'success': 'success',
+                'warning': 'warning',
+                'error': 'error',
+                'info': 'test-item'
+            }[type] || 'test-item';
+            
+            output.innerHTML = `<div class="status"><div class="${className}"><pre>${message}</pre></div></div>`;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load and display current settings
+            const settings = loadSettings();
+            updateDisplay(settings);
+            
+            // Add event listeners to radio buttons
+            document.querySelectorAll('input[name="model"]').forEach(radio => {
+                radio.addEventListener('change', handleModelChange);
+            });
+            
+            console.log('🚀 Persistent model selection demo initialized');
+            showOutput('✅ Persistent model selection is now active!\nYour AI model preference will be remembered across browser sessions.', 'success');
+        });
+    </script>
+</body>
+</html>

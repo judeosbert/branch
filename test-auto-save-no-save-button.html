@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Save Settings - No Save Button</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #00aa00;
+        }
+        .removed {
+            background: #fee2e2;
+            border-left-color: #dc2626;
+        }
+        .button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 28rem;
+            width: 100%;
+            margin: 0 1rem;
+            max-height: calc(100vh - 4rem);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            background: #f9fafb;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .engine-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .engine-option:hover {
+            border-color: #9ca3af;
+        }
+        .engine-option.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .auto-save-indicator {
+            background: #dcfce7;
+            border: 1px solid #22c55e;
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin: 1rem 0;
+            color: #15803d;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .code-block {
+            background: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-left: 4px solid #3b82f6;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>✅ Auto-Save Settings - Save Button Removed</h1>
+    
+    <div class="status">
+        <h2>🎯 Changes Made</h2>
+        <div class="test-item removed">
+            <strong>❌ Removed:</strong> "Save Settings" button (no longer needed)
+        </div>
+        <div class="test-item removed">
+            <strong>❌ Removed:</strong> "Unsaved changes" indicator
+        </div>
+        <div class="test-item removed">
+            <strong>❌ Removed:</strong> hasChanges state management
+        </div>
+        <div class="test-item removed">
+            <strong>❌ Removed:</strong> handleSave function
+        </div>
+        <div class="test-item success">
+            <strong>✅ Added:</strong> Instant auto-save for API key changes
+        </div>
+        <div class="test-item success">
+            <strong>✅ Updated:</strong> Footer shows "Auto-save enabled"
+        </div>
+        <div class="test-item success">
+            <strong>✅ Simplified:</strong> Only "Close" button remaining
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>🔧 Implementation Details</h2>
+        
+        <div class="test-item">
+            <strong>Auto-Save Functions Added:</strong>
+            <div class="code-block">
+// Model selection auto-save
+const handleEngineChange = (newEngine) => {
+  setSelectedEngine(newEngine);
+  setConnectionResult(null);
+  
+  const updatedSettings = {
+    openaiApiKey: apiKey,
+    aiEngine: newEngine,
+    model: modelMap[newEngine]
+  };
+  
+  onSave(updatedSettings); // Immediate save
+};
+
+// API key auto-save
+const handleApiKeyChange = (newApiKey) => {
+  setApiKey(newApiKey);
+  
+  const updatedSettings = {
+    openaiApiKey: newApiKey,
+    aiEngine: selectedEngine,
+    model: modelMap[selectedEngine]
+  };
+  
+  onSave(updatedSettings); // Immediate save
+};
+            </div>
+        </div>
+
+        <div class="test-item">
+            <strong>Removed State Management:</strong>
+            <div class="code-block">
+// ❌ Removed
+const [hasChanges, setHasChanges] = useState(false);
+
+// ❌ Removed useEffect for change tracking
+useEffect(() => {
+  const hasApiKeyChange = apiKey !== currentSettings.openaiApiKey;
+  const hasEngineChange = selectedEngine !== currentSettings.aiEngine;
+  setHasChanges(hasApiKeyChange || hasEngineChange);
+}, [apiKey, selectedEngine, currentSettings]);
+
+// ❌ Removed handleSave function
+const handleSave = () => { ... };
+            </div>
+        </div>
+    </div>
+
+    <button class="button" onclick="openModal()">Open Auto-Save Settings Modal</button>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 2rem; height: 2rem; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        🧠
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Branch Settings</h3>
+                        <p style="margin: 0; font-size: 0.875rem; color: rgba(255,255,255,0.8);">Configure your AI engine and API key</p>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="auto-save-indicator">
+                    <span style="font-size: 1.25rem;">⚡</span>
+                    <span><strong>Auto-save enabled!</strong> Changes save instantly as you type.</span>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">🔑 OpenAI API Key</label>
+                    <input type="password" class="form-input" placeholder="sk-..." value="" id="apiKeyInput">
+                    <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 0.75rem; margin-top: 0.75rem; font-size: 0.875rem; color: #92400e;">
+                        <strong>BYOK (Bring Your Own Key)</strong><br>
+                        Your API key auto-saves as you type and is stored locally.
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">AI Engine</label>
+                    <div class="engine-option selected" data-engine="gpt-3.5-turbo">
+                        <input type="radio" name="engine" checked>
+                        <div>
+                            <div style="font-weight: 500;">GPT-3.5 Turbo</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Fast and efficient (Auto-saves on selection)</div>
+                        </div>
+                    </div>
+                    <div class="engine-option" data-engine="gpt-4">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">GPT-4</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Advanced reasoning (Auto-saves on selection)</div>
+                        </div>
+                    </div>
+                    <div class="engine-option" data-engine="gpt-4o">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">GPT-4o (Latest)</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Most capable model (Auto-saves on selection)</div>
+                        </div>
+                    </div>
+                    <div class="engine-option" data-engine="mock">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">Mock AI (Demo)</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">For testing without API key (Auto-saves on selection)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #f0f9ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 1rem; color: #1e40af;">
+                    <strong>💡 No Save Button Needed!</strong><br>
+                    <small>All changes automatically save to localStorage as you make them.</small>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div style="font-size: 0.875rem; color: #6b7280;">
+                    <span style="font-family: monospace; font-size: 0.75rem;">v1.0.0</span>
+                    <span style="color: #22c55e; margin-left: 1rem;">• Auto-save enabled</span>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="closeModal()" style="padding: 0.5rem 1rem; color: #6b7280; background: none; border: none; font-weight: 500; cursor: pointer;">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>✅ Benefits of Auto-Save</h2>
+        <div class="test-item success">
+            <strong>🚀 Better UX:</strong> No need to remember to click save
+        </div>
+        <div class="test-item success">
+            <strong>⚡ Instant Feedback:</strong> Changes persist immediately
+        </div>
+        <div class="test-item success">
+            <strong>🧹 Cleaner UI:</strong> Removed unnecessary buttons and indicators
+        </div>
+        <div class="test-item success">
+            <strong>🔒 Never Lose Settings:</strong> Can't accidentally close without saving
+        </div>
+        <div class="test-item success">
+            <strong>📱 Modern Pattern:</strong> Follows modern app conventions
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>🔄 Auto-Save Triggers</h2>
+        <div class="test-item">
+            <strong>✅ Model Selection:</strong> Saves immediately when radio button changes
+        </div>
+        <div class="test-item">
+            <strong>✅ API Key Typing:</strong> Saves on every keystroke in input/textarea
+        </div>
+        <div class="test-item">
+            <strong>✅ Paste Operations:</strong> Saves when pasting API keys
+        </div>
+        <div class="test-item">
+            <strong>✅ All Input Methods:</strong> Works with keyboard, mouse, and clipboard
+        </div>
+    </div>
+
+    <script>
+        let saveTimeout;
+        
+        function simulateAutoSave(type, value) {
+            clearTimeout(saveTimeout);
+            console.log(`🔄 Auto-saving ${type}:`, value);
+            
+            // Simulate the save with a small delay (like real typing)
+            saveTimeout = setTimeout(() => {
+                console.log(`💾 ${type} auto-saved to localStorage`);
+                
+                // Show visual feedback
+                const indicator = document.querySelector('.auto-save-indicator');
+                indicator.style.background = '#dcfce7';
+                indicator.innerHTML = '<span style="font-size: 1.25rem;">✅</span><span><strong>Saved!</strong> ' + type + ' updated automatically.</span>';
+                
+                setTimeout(() => {
+                    indicator.style.background = '#dcfce7';
+                    indicator.innerHTML = '<span style="font-size: 1.25rem;">⚡</span><span><strong>Auto-save enabled!</strong> Changes save instantly as you type.</span>';
+                }, 1500);
+            }, 300);
+        }
+        
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            console.log('✅ Auto-save settings modal opened - no save button needed!');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        // Simulate auto-save on API key input
+        document.getElementById('apiKeyInput').addEventListener('input', function(e) {
+            simulateAutoSave('API Key', e.target.value);
+        });
+        
+        // Simulate auto-save on engine selection
+        document.querySelectorAll('input[name="engine"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.querySelectorAll('.engine-option').forEach(opt => opt.classList.remove('selected'));
+                this.closest('.engine-option').classList.add('selected');
+                simulateAutoSave('AI Engine', this.closest('.engine-option').dataset.engine);
+            });
+        });
+        
+        console.log('⚡ Auto-save settings demo initialized - Save button removed!');
+    </script>
+</body>
+</html>
