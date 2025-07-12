@@ -326,7 +326,7 @@ const ChatInterface = ({
   }, [currentBranchId, getColumnWidth, updateColumnWidth]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 w-full max-w-full overflow-hidden" style={{ maxWidth: '100vw' }}>
+    <div className="flex flex-col h-screen bg-gray-100 w-full max-w-full overflow-hidden" style={{ maxWidth: '100vw', maxHeight: '100vh' }}>
       {/* Top Header Bar with Title, Navigation, and MiniMap */}
       <div className="flex-shrink-0 bg-white border-b border-gray-200 shadow-sm">
         <div className="flex items-start justify-between p-4 gap-4 w-full max-w-full">
@@ -423,7 +423,7 @@ const ChatInterface = ({
         {/* Horizontal Column Container */}
         <div className={`flex h-full column-scroll scrollbar-hide w-full max-w-full ${
           branches.length > 0 ? 'overflow-x-auto' : 'justify-center'
-        }`} style={{ maxWidth: '100vw', width: '100%' }}>
+        }`} style={{ maxWidth: '100vw', width: '100%', height: '100%' }}>
           
           {/* No branches - Simple centered layout */}
           {branches.length === 0 && (
@@ -502,6 +502,35 @@ const ChatInterface = ({
                   </div>
                 )}
               </div>
+
+              {/* Input Area - Fixed at bottom */}
+              <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
+                <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+                  <div className="flex-1 relative w-full">
+                    <textarea
+                      ref={textareaRef}
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Message Branch AI..."
+                      className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
+                      rows={1}
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!inputValue.trim() || isLoading}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-gray-500"
+                    >
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </form>
+                
+                <div className="mt-2 text-xs text-center text-gray-500 w-full">
+                  <span>Branch AI can make mistakes. Check important info.</span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -517,7 +546,7 @@ const ChatInterface = ({
                 isLast={!currentBranchId}
                 onWidthChange={(width) => updateColumnWidth('main', width)}
               >
-                {/* Column Header - Only show when branches exist */}
+                {/* Column Header - Fixed at top */}
                 <div className="border-b border-gray-200 p-3 bg-gray-50 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
@@ -530,7 +559,7 @@ const ChatInterface = ({
                   </div>
                 </div>
 
-                {/* Scrollable Messages Area */}
+                {/* Scrollable Messages Area - Expandable between header and input */}
                 <div className="flex-1 overflow-y-auto bg-white min-h-0">
                   <div className="divide-y divide-gray-100 p-4">
                     {messages.filter(msg => !msg.branchId).map((message) => {
@@ -589,6 +618,37 @@ const ChatInterface = ({
                     <div ref={messagesEndRef} className="h-4" />
                   </div>
                 </div>
+
+                {/* Input Area - Fixed at bottom, show only when not in active branch */}
+                {!currentBranchId && (
+                  <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
+                    <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+                      <div className="flex-1 relative w-full">
+                        <textarea
+                          ref={textareaRef}
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          placeholder="Message Branch AI..."
+                          className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
+                          rows={1}
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="submit"
+                          disabled={!inputValue.trim() || isLoading}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-gray-500"
+                        >
+                          <Send size={16} />
+                        </button>
+                      </div>
+                    </form>
+                    
+                    <div className="mt-2 text-xs text-center text-gray-500 w-full">
+                      <span>Branch AI can make mistakes. Check important info.</span>
+                    </div>
+                  </div>
+                )}
               </ResizableColumn>
             </>
           )}
@@ -642,7 +702,7 @@ const ChatInterface = ({
                   isLast={index === branchPath.length - 1}
                   onWidthChange={(width) => updateColumnWidth(`branch-${branch.id}`, width)}
                 >
-                  {/* Column Header */}
+                  {/* Column Header - Fixed at top */}
                   <div className={`border-b border-gray-200 p-3 flex-shrink-0 ${
                     isCurrentBranch ? 'bg-green-50' : 'bg-gray-50'
                   }`}>
@@ -674,7 +734,7 @@ const ChatInterface = ({
                     </div>
                   </div>
 
-                  {/* Scrollable Branch Messages Area */}
+                  {/* Scrollable Branch Messages Area - Expandable between header and input */}
                   <div className="flex-1 overflow-y-auto bg-white min-h-0">
                     <div className="divide-y divide-gray-100 p-4">
                       {/* Branch Origin Indicator - Show selected text that created this branch */}
@@ -764,58 +824,46 @@ const ChatInterface = ({
                       {isCurrentBranch && <div ref={branchMessagesEndRef} className="h-4" />}
                     </div>
                   </div>
+
+                  {/* Input Area - Fixed at bottom, show only in active branch column */}
+                  {isCurrentBranch && (
+                    <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
+                      <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+                        <div className="flex-1 relative w-full">
+                          <textarea
+                            ref={textareaRef}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Continue this branch conversation..."
+                            className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-green-300 focus:ring-green-500 bg-white"
+                            rows={1}
+                            disabled={isLoading}
+                          />
+                          <button
+                            type="submit"
+                            disabled={!inputValue.trim() || isLoading}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-green-600 hover:text-green-800"
+                          >
+                            <Send size={16} />
+                          </button>
+                        </div>
+                      </form>
+                      
+                      <div className="mt-2 text-xs text-center text-green-600 w-full">
+                        <div className="flex items-center justify-center gap-1">
+                          <GitBranch size={12} />
+                          <span>Branch conversation • Changes won't affect parent context</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </ResizableColumn>
               );
             });
 
             return columns;
           })()}
-        </div>
-      </div>
-      
-      {/* Global Input Area - Fixed at bottom of screen */}
-      <div className="border-t p-4 flex-shrink-0 bg-white border-gray-200 w-full">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <div className="flex-1 relative">
-              <textarea
-                ref={textareaRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={currentBranchId ? "Continue this branch conversation..." : "Message Branch AI..."}
-                className={`w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border ${
-                  currentBranchId 
-                    ? 'border-green-300 focus:ring-green-500' 
-                    : 'border-gray-300 focus:ring-blue-500'
-                } bg-white`}
-                rows={1}
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={!inputValue.trim() || isLoading}
-                className={`absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors ${
-                  currentBranchId 
-                    ? 'text-green-600 hover:text-green-800' 
-                    : 'text-gray-500'
-                }`}
-              >
-                <Send size={16} />
-              </button>
-            </div>
-          </form>
-          
-          <div className="mt-2 text-xs text-center text-gray-500">
-            {currentBranchId ? (
-              <div className="flex items-center justify-center gap-1">
-                <GitBranch size={12} />
-                <span>Branch conversation • Changes won't affect parent context</span>
-              </div>
-            ) : (
-              <span>Branch AI can make mistakes. Check important info.</span>
-            )}
-          </div>
         </div>
       </div>
       
