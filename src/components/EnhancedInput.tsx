@@ -171,19 +171,34 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
   }, [handleSubmit, onKeyDown]);
 
   const startRecording = useCallback(async () => {
+    console.log('🎤 Starting voice recording...');
+    
+    // Check if MediaRecorder is supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('❌ MediaRecorder not supported in this browser');
+      alert('Voice recording is not supported in this browser. Please use Chrome, Firefox, or Safari.');
+      return;
+    }
+
     try {
+      console.log('🎤 Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✅ Microphone access granted');
+      
       const mediaRecorder = new MediaRecorder(stream);
       const chunks: Blob[] = [];
 
       mediaRecorder.ondataavailable = (e) => {
+        console.log('🎤 Recording data available:', e.data.size, 'bytes');
         if (e.data.size > 0) {
           chunks.push(e.data);
         }
       };
 
       mediaRecorder.onstop = () => {
+        console.log('🎤 Recording stopped, processing audio...');
         const blob = new Blob(chunks, { type: 'audio/wav' });
+        console.log('🎤 Audio blob created:', blob.size, 'bytes');
         
         // Create file attachment for the recording
         const audioFile: FileAttachment = {
@@ -194,30 +209,90 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
           url: URL.createObjectURL(blob)
         };
         
+        console.log('🎤 Adding audio file to attachments:', audioFile.name);
         setAttachments(prev => [...prev, audioFile]);
         
         // Stop all tracks
         stream.getTracks().forEach(track => track.stop());
+        console.log('🎤 Audio stream tracks stopped');
       };
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
+      console.log('🎤 Recording started successfully');
+      
+      // Start the recording timer
+      recordingIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      
     } catch (error) {
-      console.error('Error accessing microphone:', error);
-      alert('Could not access microphone. Please check permissions.');
+      console.error('❌ Error accessing microphone:', error);
+      
+      // Provide specific error messages based on the error type
+      if (error instanceof DOMException) {
+        switch (error.name) {
+          case 'NotAllowedError':
+            alert('Microphone access denied. Please allow microphone access in your browser settings and try again.');
+            break;
+          case 'NotFoundError':
+            alert('No microphone found. Please connect a microphone and try again.');
+            break;
+          case 'NotSupportedError':
+            alert('Voice recording is not supported in this browser or requires HTTPS.');
+            break;
+          case 'NotReadableError':
+            alert('Microphone is already in use by another application.');
+            break;
+          default:
+            alert(`Could not access microphone: ${error.message}`);
+        }
+      } else {
+        alert('Could not access microphone. Please check permissions and try again.');
+      }
     }
   }, []);
 
   const stopRecording = useCallback(() => {
+    console.log('🎤 Stopping voice recording...');
+    
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       setIsPaused(false);
       setRecordingTime(0);
+      
+      // Clear the recording timer
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+      
+      console.log('🎤 Recording stopped successfully');
+    } else {
+      console.warn('⚠️ No active recording to stop');
     }
   }, [isRecording]);
+
+  // Handle microphone button click with debugging
+  const handleMicrophoneClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🎤 Microphone button clicked, isRecording:', isRecording);
+    
+    if (disabled) {
+      console.log('🎤 Button is disabled, ignoring click');
+      return;
+    }
+    
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  }, [isRecording, disabled, startRecording, stopRecording]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -302,16 +377,17 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
         {/* Voice Recording Button - KEEP SIZE: h-9 w-9 matches input height */}
         {showVoiceRecording && (
           <button
-            onClick={isRecording ? stopRecording : startRecording}
+            onClick={handleMicrophoneClick}
             className={`h-9 w-9 rounded-lg transition-colors flex-shrink-0 flex items-center justify-center ${
               isRecording
-                ? 'bg-red-100 text-red-600'
-                : 'hover:bg-gray-100 text-gray-500'
-            }`}
+                ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                : 'hover:bg-gray-100 text-gray-500 active:bg-gray-200'
+            } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             title={isRecording ? "Stop recording" : "Start voice recording"}
             disabled={disabled}
+            type="button"
           >
-            <Mic size={16} />
+            {isRecording ? <Square size={16} /> : <Mic size={16} />}
           </button>
         )}
 

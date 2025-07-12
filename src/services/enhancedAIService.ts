@@ -46,14 +46,42 @@ export class EnhancedAIService {
     }
 
     if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
-      throw new Error('Valid OpenAI API key is required for this AI engine');
+      throw new Error('Valid OpenAI API key is required for this AI engine. Please check your settings and ensure your API key starts with "sk-" and is properly configured.');
+    }
+
+    // For vision-related requests, ensure we're using a vision-capable model
+    const hasImages = attachments.some(att => att.type.startsWith('image/'));
+    if (hasImages && !this.settings.model.includes('gpt-4')) {
+      throw new Error(`Image analysis requires GPT-4 or GPT-4o. Current model: ${this.settings.model}. Please change to GPT-4 or GPT-4o in settings.`);
     }
 
     try {
       yield* this.useOpenAIServiceStream(content, attachments, conversationHistory, branchContext);
       return this.createMessage('', 'assistant');
     } catch (error) {
-      console.error('OpenAI API error, falling back to mock:', error);
+      console.error('OpenAI API error:', error);
+      
+      // For voice and image processing, we want to show the actual error instead of fallback
+      const hasVoiceOrImage = attachments.some(att => 
+        att.type.startsWith('audio/') || att.type.startsWith('image/')
+      );
+      
+      if (hasVoiceOrImage) {
+        // Show error message instead of falling back to mock for voice/image
+        const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
+        yield `⚠️ **OpenAI API Error**: ${errorMessage}\n\n`;
+        yield `This error occurred while processing your ${attachments.some(att => att.type.startsWith('audio/')) ? 'voice recording' : 'image'}. `;
+        yield `Please check your OpenAI API key and try again.\n\n`;
+        yield `**Troubleshooting:**\n`;
+        yield `- Verify your OpenAI API key is valid and has sufficient credits\n`;
+        yield `- Check if you have access to the selected model (${this.settings.model})\n`;
+        yield `- Ensure your API key has permission for vision/audio processing\n`;
+        return this.createMessage('', 'assistant');
+      }
+      
+      // For text-only messages, still fallback but warn the user
+      console.warn('Falling back to mock service due to OpenAI API error');
+      yield `⚠️ **Note**: Using mock AI service due to API error. Check console for details.\n\n`;
       yield* this.useMockServiceStream(content, attachments);
       return this.createMessage('', 'assistant');
     }
@@ -65,14 +93,40 @@ export class EnhancedAIService {
     }
 
     if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
-      throw new Error('Valid OpenAI API key is required for file analysis');
+      throw new Error('Valid OpenAI API key is required for file analysis. Please check your settings and ensure your API key starts with "sk-" and is properly configured.');
+    }
+
+    // For image analysis, ensure we're using a vision-capable model
+    if (file.type.startsWith('image/') && !this.settings.model.includes('gpt-4')) {
+      throw new Error(`Image analysis requires GPT-4 or GPT-4o. Current model: ${this.settings.model}. Please change to GPT-4 or GPT-4o in settings.`);
     }
 
     try {
       return await this.analyzeFileWithOpenAI(file);
     } catch (error) {
-      console.error('OpenAI file analysis error, falling back to mock:', error);
-      return this.mockFileAnalysis(file);
+      console.error('OpenAI file analysis error:', error);
+      
+      // For image and audio files, provide specific error information
+      if (file.type.startsWith('image/') || file.type.startsWith('audio/')) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
+        return `⚠️ **OpenAI API Error for ${file.type.startsWith('image/') ? 'Image' : 'Audio'} Analysis**
+
+**Error**: ${errorMessage}
+
+**File**: ${file.name} (${file.type}, ${this.formatFileSize(file.size)})
+
+**Troubleshooting:**
+- Verify your OpenAI API key is valid and has sufficient credits
+- Check if you have access to GPT-4 Vision (required for image analysis)
+- Ensure your API key has permission for vision/audio processing
+- For audio files, make sure the format is supported (mp3, wav, m4a, etc.)
+
+**Note**: File analysis requires a valid OpenAI API key and access to GPT-4 Vision for images or Whisper for audio.`;
+      }
+      
+      // For other file types, still fallback but inform the user
+      console.warn('Falling back to mock analysis due to OpenAI API error');
+      return `⚠️ **Note**: Using mock analysis due to API error.\n\n${this.mockFileAnalysis(file)}`;
     }
   }
 
@@ -407,6 +461,49 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
 
   private isValidOpenAIKey(key: string): boolean {
     return key.startsWith('sk-') && key.length > 20;
+  }
+
+  // Test the API key and model access
+  async testAPIConnection(): Promise<{ success: boolean; error?: string }> {
+    if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
+      return { success: false, error: 'Invalid API key format. OpenAI keys should start with "sk-"' };
+    }
+
+    try {
+      const response = await fetch('https://api.openai.com/v1/models', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.settings.openaiApiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { 
+          success: false, 
+          error: `API Error (${response.status}): ${errorData.error?.message || response.statusText}` 
+        };
+      }
+
+      const data = await response.json();
+      const availableModels = data.data?.map((model: any) => model.id) || [];
+      
+      // Check if the selected model is available
+      if (!availableModels.includes(this.settings.model)) {
+        return { 
+          success: false, 
+          error: `Model "${this.settings.model}" not available. Available models: ${availableModels.slice(0, 5).join(', ')}${availableModels.length > 5 ? '...' : ''}` 
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Network error connecting to OpenAI' 
+      };
+    }
   }
 
   private createMessage(content: string, sender: 'user' | 'assistant'): AIMessage {

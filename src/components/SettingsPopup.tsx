@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Key, Brain, Save, AlertCircle, Type } from 'lucide-react';
+import { X, Key, Brain, Save, AlertCircle, Type, CheckCircle, Wifi } from 'lucide-react';
 import { versionService } from '../services/versionService';
+import { EnhancedAIService } from '../services/enhancedAIService';
 
 export interface SettingsConfig {
   openaiApiKey: string;
@@ -33,6 +34,8 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [useTextArea, setUseTextArea] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // Handle outside click to close modal
@@ -61,6 +64,11 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
     const hasApiKeyChange = apiKey !== currentSettings.openaiApiKey;
     const hasEngineChange = selectedEngine !== currentSettings.aiEngine;
     setHasChanges(hasApiKeyChange || hasEngineChange);
+    
+    // Reset connection result when settings change
+    if (hasApiKeyChange || hasEngineChange) {
+      setConnectionResult(null);
+    }
   }, [apiKey, selectedEngine, currentSettings]);
 
   const handleSave = () => {
@@ -83,7 +91,51 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
     setApiKey(currentSettings.openaiApiKey);
     setSelectedEngine(currentSettings.aiEngine);
     setHasChanges(false);
+    setConnectionResult(null);
     onClose();
+  };
+
+  const testConnection = async () => {
+    if (selectedEngine === 'mock') {
+      setConnectionResult({ success: true, message: 'Mock AI service is working correctly.' });
+      return;
+    }
+
+    if (!apiKey.trim()) {
+      setConnectionResult({ success: false, message: 'Please enter an API key first.' });
+      return;
+    }
+
+    setTestingConnection(true);
+    setConnectionResult(null);
+
+    try {
+      const modelMap = {
+        'openai-gpt4o': 'gpt-4o',
+        'openai-gpt4': 'gpt-4',
+        'openai-gpt3.5': 'gpt-3.5-turbo',
+        'mock': 'mock'
+      };
+
+      const testService = new EnhancedAIService({
+        openaiApiKey: apiKey,
+        aiEngine: selectedEngine,
+        model: modelMap[selectedEngine]
+      });
+
+      const result = await testService.testAPIConnection();
+      setConnectionResult({
+        success: result.success,
+        message: result.success ? 'Connection successful! API key and model are working.' : result.error || 'Unknown error'
+      });
+    } catch (error) {
+      setConnectionResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to test connection'
+      });
+    } finally {
+      setTestingConnection(false);
+    }
   };
 
   const maskApiKey = (key: string) => {
@@ -258,6 +310,43 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Test Connection */}
+            {selectedEngine !== 'mock' && (
+              <div className="flex gap-3">
+                <button
+                  onClick={testConnection}
+                  disabled={testingConnection || !apiKey.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+                >
+                  <Wifi size={16} className={testingConnection ? 'animate-pulse' : ''} />
+                  {testingConnection ? 'Testing...' : 'Test Connection'}
+                </button>
+              </div>
+            )}
+
+            {/* Connection Result */}
+            {connectionResult && (
+              <div className={`flex items-start gap-3 p-3 rounded-lg ${
+                connectionResult.success 
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-red-50 border border-red-200'
+              }`}>
+                {connectionResult.success ? (
+                  <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
+                ) : (
+                  <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
+                )}
+                <div className={`text-sm ${
+                  connectionResult.success ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  <p className="font-medium">
+                    {connectionResult.success ? 'Connection Successful' : 'Connection Failed'}
+                  </p>
+                  <p className="text-xs mt-1">{connectionResult.message}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* AI Engine Selection */}
