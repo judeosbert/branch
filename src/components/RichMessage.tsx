@@ -215,17 +215,19 @@ const RichMessage: React.FC<RichMessageProps> = ({
       {/* Image Modal */}
       {expandedImage && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 px-8 py-4"
           onClick={() => setExpandedImage(null)}
         >
+          {/* Close button positioned relative to viewport, not image */}
+          <button
+            onClick={() => setExpandedImage(null)}
+            className="fixed top-4 right-4 bg-black bg-opacity-80 hover:bg-opacity-100 text-white rounded-full p-3 transition-all shadow-lg border-2 border-white border-opacity-20 hover:border-opacity-40"
+            style={{ zIndex: 9999 }}
+            title="Close (ESC)"
+          >
+            <X size={20} />
+          </button>
           <div className="relative max-w-full max-h-full" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setExpandedImage(null)}
-              className="absolute -top-12 right-0 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full p-2 transition-colors z-10"
-              title="Close (ESC)"
-            >
-              <X size={20} />
-            </button>
             <img
               src={expandedImage}
               alt="Expanded view"
