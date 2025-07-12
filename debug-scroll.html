@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scroll Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #4f46e5;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .test-area {
+            display: flex;
+            height: 400px;
+        }
+        
+        .column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e5e7eb;
+        }
+        
+        .column:last-child {
+            border-right: none;
+        }
+        
+        .column-header {
+            background: #f9fafb;
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        
+        .scrollable-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            min-height: 0;
+        }
+        
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: #f3f4f6;
+            border-radius: 6px;
+        }
+        
+        .input-area {
+            padding: 12px;
+            border-top: 1px solid #e5e7eb;
+            background: #f9fafb;
+            flex-shrink: 0;
+        }
+        
+        .input-area input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        
+        .results {
+            padding: 20px;
+            background: #f0f9ff;
+            border-top: 1px solid #e0e7ff;
+        }
+        
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+        
+        .test-button:hover {
+            background: #2563eb;
+        }
+        
+        .status {
+            margin-top: 12px;
+            padding: 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .status.pass {
+            background: #d1fae5;
+            color: #047857;
+        }
+        
+        .status.fail {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Scroll Layout Test</h1>
+            <p>This tests the same layout structure as the chat interface</p>
+        </div>
+        
+        <div class="test-area">
+            <div class="column">
+                <div class="column-header">Main Chat</div>
+                <div class="scrollable-area" id="main-scroll">
+                    <div class="message">Message 1</div>
+                    <div class="message">Message 2</div>
+                    <div class="message">Message 3</div>
+                    <div class="message">Message 4</div>
+                    <div class="message">Message 5</div>
+                    <div class="message">Message 6</div>
+                    <div class="message">Message 7</div>
+                    <div class="message">Message 8</div>
+                    <div class="message">Message 9</div>
+                    <div class="message">Message 10</div>
+                    <div class="message">Message 11</div>
+                    <div class="message">Message 12</div>
+                    <div class="message">Message 13</div>
+                    <div class="message">Message 14</div>
+                    <div class="message">Message 15</div>
+                </div>
+                <div class="input-area">
+                    <input type="text" placeholder="Type a message..." />
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="column-header">Branch Chat</div>
+                <div class="scrollable-area" id="branch-scroll">
+                    <div class="message">Branch Message 1</div>
+                    <div class="message">Branch Message 2</div>
+                    <div class="message">Branch Message 3</div>
+                    <div class="message">Branch Message 4</div>
+                    <div class="message">Branch Message 5</div>
+                    <div class="message">Branch Message 6</div>
+                    <div class="message">Branch Message 7</div>
+                    <div class="message">Branch Message 8</div>
+                    <div class="message">Branch Message 9</div>
+                    <div class="message">Branch Message 10</div>
+                    <div class="message">Branch Message 11</div>
+                    <div class="message">Branch Message 12</div>
+                    <div class="message">Branch Message 13</div>
+                    <div class="message">Branch Message 14</div>
+                    <div class="message">Branch Message 15</div>
+                </div>
+                <div class="input-area">
+                    <input type="text" placeholder="Continue branch..." />
+                </div>
+            </div>
+        </div>
+        
+        <div class="results">
+            <h3>Test Results</h3>
+            <button class="test-button" onclick="runScrollTest()">Test Scroll Behavior</button>
+            <button class="test-button" onclick="addMessages()">Add More Messages</button>
+            <div id="test-status" class="status"></div>
+        </div>
+    </div>
+
+    <script>
+        function runScrollTest() {
+            const mainScroll = document.getElementById('main-scroll');
+            const branchScroll = document.getElementById('branch-scroll');
+            const status = document.getElementById('test-status');
+            
+            // Test if scroll areas are properly contained
+            const mainScrollable = mainScroll.scrollHeight > mainScroll.clientHeight;
+            const branchScrollable = branchScroll.scrollHeight > branchScroll.clientHeight;
+            
+            // Test if page body doesn't scroll
+            const bodyScrollable = document.body.scrollHeight > window.innerHeight;
+            
+            let result = '';
+            let testsPassed = 0;
+            let totalTests = 3;
+            
+            if (mainScrollable) {
+                result += '✓ Main chat area is scrollable<br>';
+                testsPassed++;
+            } else {
+                result += '✗ Main chat area is NOT scrollable<br>';
+            }
+            
+            if (branchScrollable) {
+                result += '✓ Branch chat area is scrollable<br>';
+                testsPassed++;
+            } else {
+                result += '✗ Branch chat area is NOT scrollable<br>';
+            }
+            
+            if (!bodyScrollable) {
+                result += '✓ Page body does NOT scroll<br>';
+                testsPassed++;
+            } else {
+                result += '✗ Page body scrolls (BAD)<br>';
+            }
+            
+            status.innerHTML = result + `<br><strong>Tests passed: ${testsPassed}/${totalTests}</strong>`;
+            status.className = testsPassed === totalTests ? 'status pass' : 'status fail';
+        }
+        
+        function addMessages() {
+            const mainScroll = document.getElementById('main-scroll');
+            const branchScroll = document.getElementById('branch-scroll');
+            
+            for (let i = 16; i <= 25; i++) {
+                const mainMsg = document.createElement('div');
+                mainMsg.className = 'message';
+                mainMsg.textContent = `Message ${i}`;
+                mainScroll.appendChild(mainMsg);
+                
+                const branchMsg = document.createElement('div');
+                branchMsg.className = 'message';
+                branchMsg.textContent = `Branch Message ${i}`;
+                branchScroll.appendChild(branchMsg);
+            }
+            
+            // Auto-scroll to bottom
+            mainScroll.scrollTop = mainScroll.scrollHeight;
+            branchScroll.scrollTop = branchScroll.scrollHeight;
+        }
+        
+        // Run initial test
+        setTimeout(runScrollTest, 100);
+    </script>
+</body>
+</html>

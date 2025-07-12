@@ -419,17 +419,18 @@ const ChatInterface = ({
       </div>
 
       {/* Main Content Area - Column View */}
-      <div className="flex-1 relative w-full max-w-full overflow-hidden">
+      <div className="flex-1 relative w-full max-w-full overflow-hidden min-h-0">
         {/* Horizontal Column Container */}
         <div className={`flex h-full column-scroll scrollbar-hide w-full max-w-full ${
-          branches.length > 0 ? 'overflow-x-auto' : 'justify-center'
+          branches.length > 0 ? 'overflow-x-auto overflow-y-hidden' : 'justify-center overflow-hidden'
         }`} style={{ maxWidth: '100vw', width: '100%', height: '100%' }}>
           
           {/* No branches - Simple centered layout */}
           {branches.length === 0 && (
-            <div className="flex flex-col h-full bg-white max-w-4xl w-full mx-auto">
+            <div className="flex flex-col h-full bg-white max-w-4xl w-full mx-auto overflow-hidden">
               {/* Main Content Area - Either Welcome Screen or Messages */}
-              <div className="flex-1 overflow-y-auto bg-white min-h-0">
+              <div className="flex-1 overflow-y-auto bg-white min-h-0"
+                   onScroll={(e) => e.stopPropagation()}>
                 {/* Welcome Screen Content - Show when no messages exist */}
                 {messages.filter(msg => !msg.branchId).length === 0 && (
                   <div className="h-full flex items-center justify-center">
@@ -542,113 +543,116 @@ const ChatInterface = ({
                 initialWidth={384}
                 minWidth={280}
                 maxWidth={600}
-                className="h-full flex flex-col bg-white column-snap border-r border-gray-200"
+                className="h-full flex flex-col bg-white column-snap border-r border-gray-200 overflow-hidden"
                 isLast={!currentBranchId}
                 onWidthChange={(width) => updateColumnWidth('main', width)}
               >
-                {/* Column Header - Fixed at top */}
-                <div className="border-b border-gray-200 p-3 bg-gray-50 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                      <MessageCircle size={12} className="text-white" />
+                <div className="flex flex-col h-full">
+                  {/* Column Header - Fixed at top */}
+                  <div className="border-b border-gray-200 p-3 bg-gray-50 flex-shrink-0">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                        <MessageCircle size={12} className="text-white" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">Main Chat</h3>
+                      <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                        {messages.filter(m => !m.branchId).length} messages
+                      </span>
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-900">Main Chat</h3>
-                    <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-                      {messages.filter(m => !m.branchId).length} messages
-                    </span>
                   </div>
-                </div>
 
-                {/* Scrollable Messages Area - Expandable between header and input */}
-                <div className="flex-1 overflow-y-auto bg-white min-h-0">
-                  <div className="divide-y divide-gray-100 p-4">
-                    {messages.filter(msg => !msg.branchId).map((message) => {
-                      const isFlashing = lastCompletedMessageId === message.id;
-                      return (
-                        <div key={message.id} className={`flex items-start gap-3 py-2 group transition-all duration-700 ${
-                          isFlashing ? 'bg-green-100' : ''
-                        }`}>
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
-                            {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
+                  {/* Scrollable Messages Area - Expandable between header and input */}
+                  <div className="flex-1 overflow-y-auto bg-white min-h-0"
+                       onScroll={(e) => e.stopPropagation()}>
+                    <div className="divide-y divide-gray-100 p-4">
+                      {messages.filter(msg => !msg.branchId).map((message) => {
+                        const isFlashing = lastCompletedMessageId === message.id;
+                        return (
+                          <div key={message.id} className={`flex items-start gap-3 py-2 group transition-all duration-700 ${
+                            isFlashing ? 'bg-green-100' : ''
+                          }`}>
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
+                              {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
+                            </div>
+                            <div className="flex-1 relative">
+                              <BranchableMessage
+                                content={message.content}
+                                messageId={message.id}
+                                onBranch={handleLineBranch}
+                                onSelectBranch={handleSelectBranch}
+                                branches={branches.map(b => ({ 
+                                  parentMessageId: b.parentMessageId, 
+                                  branchText: b.branchText,
+                                  id: b.id
+                                }))}
+                              />
+                              <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => handleCopy(message.content)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Copy message">
+                                  <Copy size={14} />
+                                </button>
+                                <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Good response">
+                                  <ThumbsUp size={14} />
+                                </button>
+                                <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Bad response">
+                                  <ThumbsDown size={14} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex-1 relative">
-                            <BranchableMessage
-                              content={message.content}
-                              messageId={message.id}
-                              onBranch={handleLineBranch}
-                              onSelectBranch={handleSelectBranch}
-                              branches={branches.map(b => ({ 
-                                parentMessageId: b.parentMessageId, 
-                                branchText: b.branchText,
-                                id: b.id
-                              }))}
-                            />
-                            <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => handleCopy(message.content)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Copy message">
-                                <Copy size={14} />
-                              </button>
-                              <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Good response">
-                                <ThumbsUp size={14} />
-                              </button>
-                              <button className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Bad response">
-                                <ThumbsDown size={14} />
-                              </button>
+                        );
+                      })}
+                      {isLoading && !currentBranchId && (
+                        <div className="flex gap-3 p-3 bg-gray-50">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
+                            <Bot size={16} />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-gray-900">Branch AI</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
-                    {isLoading && !currentBranchId && (
-                      <div className="flex gap-3 p-3 bg-gray-50">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
-                          <Bot size={16} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-900">Branch AI</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} className="h-4" />
-                  </div>
-                </div>
-
-                {/* Input Area - Fixed at bottom, show only when not in active branch */}
-                {!currentBranchId && (
-                  <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
-                    <form onSubmit={handleSubmit} className="flex gap-2 w-full">
-                      <div className="flex-1 relative w-full">
-                        <textarea
-                          ref={textareaRef}
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          placeholder="Message Branch AI..."
-                          className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
-                          rows={1}
-                          disabled={isLoading}
-                        />
-                        <button
-                          type="submit"
-                          disabled={!inputValue.trim() || isLoading}
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-gray-500"
-                        >
-                          <Send size={16} />
-                        </button>
-                      </div>
-                    </form>
-                    
-                    <div className="mt-2 text-xs text-center text-gray-500 w-full">
-                      <span>Branch AI can make mistakes. Check important info.</span>
+                      )}
+                      <div ref={messagesEndRef} className="h-4" />
                     </div>
                   </div>
-                )}
+
+                  {/* Input Area - Fixed at bottom, show only when not in active branch */}
+                  {!currentBranchId && (
+                    <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
+                      <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+                        <div className="flex-1 relative w-full">
+                          <textarea
+                            ref={textareaRef}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder="Message Branch AI..."
+                            className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
+                            rows={1}
+                            disabled={isLoading}
+                          />
+                          <button
+                            type="submit"
+                            disabled={!inputValue.trim() || isLoading}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-gray-500"
+                          >
+                            <Send size={16} />
+                          </button>
+                        </div>
+                      </form>
+                      
+                      <div className="mt-2 text-xs text-center text-gray-500 w-full">
+                        <span>Branch AI can make mistakes. Check important info.</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </ResizableColumn>
             </>
           )}
@@ -696,168 +700,171 @@ const ChatInterface = ({
                   initialWidth={getColumnWidth(`branch-${branch.id}`, 384)}
                   minWidth={280}
                   maxWidth={600}
-                  className={`h-full flex flex-col bg-white column-snap ${
+                  className={`h-full flex flex-col bg-white column-snap overflow-hidden ${
                     index < branchPath.length - 1 ? 'border-r border-gray-200' : ''
                   }`}
                   isLast={index === branchPath.length - 1}
                   onWidthChange={(width) => updateColumnWidth(`branch-${branch.id}`, width)}
                 >
-                  {/* Column Header - Fixed at top */}
-                  <div className={`border-b border-gray-200 p-3 flex-shrink-0 ${
-                    isCurrentBranch ? 'bg-green-50' : 'bg-gray-50'
-                  }`}>
-                    <div className="flex items-center gap-2 pl-2">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                        isCurrentBranch ? 'bg-green-600' : 'bg-green-500'
-                      }`}>
-                        <GitBranch size={12} className="text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-semibold text-gray-900">
-                          Branch {branchNumber} {index < branchPath.length - 1 ? '(Parent)' : '(Active)'}
-                        </h3>
-                        <div className="text-xs text-green-700 line-clamp-1">
-                          <MarkdownMessage 
-                            content={`"${branch.branchText}"`}
-                            className="text-xs text-green-700 mb-0"
-                          />
+                  <div className="flex flex-col h-full">
+                    {/* Column Header - Fixed at top */}
+                    <div className={`border-b border-gray-200 p-3 flex-shrink-0 ${
+                      isCurrentBranch ? 'bg-green-50' : 'bg-gray-50'
+                    }`}>
+                      <div className="flex items-center gap-2 pl-2">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          isCurrentBranch ? 'bg-green-600' : 'bg-green-500'
+                        }`}>
+                          <GitBranch size={12} className="text-white" />
                         </div>
+                        <div className="flex-1">
+                          <h3 className="text-sm font-semibold text-gray-900">
+                            Branch {branchNumber} {index < branchPath.length - 1 ? '(Parent)' : '(Active)'}
+                          </h3>
+                          <div className="text-xs text-green-700 line-clamp-1">
+                            <MarkdownMessage 
+                              content={`"${branch.branchText}"`}
+                              className="text-xs text-green-700 mb-0"
+                            />
+                          </div>
+                        </div>
+                        {isCurrentBranch && (
+                          <button
+                            onClick={() => onNavigateToBranch(null)}
+                            className="text-gray-600 hover:text-gray-800 text-xs font-medium hover:bg-gray-200 px-2 py-1 rounded transition-colors"
+                          >
+                            Close
+                          </button>
+                        )}
                       </div>
-                      {isCurrentBranch && (
-                        <button
-                          onClick={() => onNavigateToBranch(null)}
-                          className="text-gray-600 hover:text-gray-800 text-xs font-medium hover:bg-gray-200 px-2 py-1 rounded transition-colors"
-                        >
-                          Close
-                        </button>
-                      )}
                     </div>
-                  </div>
 
-                  {/* Scrollable Branch Messages Area - Expandable between header and input */}
-                  <div className="flex-1 overflow-y-auto bg-white min-h-0">
-                    <div className="divide-y divide-gray-100 p-4">
-                      {/* Branch Origin Indicator - Show selected text that created this branch */}
-                      {branchMessages.length === 0 && (
-                        <div className="p-4 bg-green-50 border-l-4 border-green-400">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                              <GitBranch size={14} className="text-green-600" />
+                    {/* Scrollable Branch Messages Area - Expandable between header and input */}
+                    <div className="flex-1 overflow-y-auto bg-white min-h-0"
+                         onScroll={(e) => e.stopPropagation()}>
+                      <div className="divide-y divide-gray-100 p-4">
+                        {/* Branch Origin Indicator - Show selected text that created this branch */}
+                        {branchMessages.length === 0 && (
+                          <div className="p-4 bg-green-50 border-l-4 border-green-400">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <GitBranch size={14} className="text-green-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-medium text-green-800">Branch Origin</span>
+                                  <span className="text-xs text-green-600 bg-green-200 px-2 py-0.5 rounded-full">
+                                    Selected Text
+                                  </span>
+                                </div>
+                                <div className="text-sm text-green-700 bg-white border border-green-200 rounded-lg p-3">
+                                  <BranchableMessage
+                                    content={branch.branchText}
+                                    messageId={`branch-origin-${branch.id}`}
+                                    onBranch={() => {}} // No branching from branch origin
+                                    onSelectBranch={() => {}} // No branch selection from branch origin
+                                    branches={[]}
+                                    className="branch-origin-text"
+                                    disableBranching={true}
+                                  />
+                                </div>
+                                <p className="text-xs text-green-600 mt-2">
+                                  This branch was created from the text above. Start typing above to continue the conversation in this context.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {branchMessages.map((message) => {
+                          const isFlashing = lastCompletedMessageId === message.id;
+                          return (
+                            <div key={message.id} className={`flex items-start gap-3 py-2 group transition-all duration-700 ${
+                              isFlashing ? 'bg-green-100' : ''
+                            }`}>
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                                {message.sender === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
+                              </div>
+                              <div className="flex-1 relative">
+                                <BranchableMessage
+                                  content={message.content}
+                                  messageId={message.id}
+                                  onBranch={handleLineBranch}
+                                  onSelectBranch={handleSelectBranch}
+                                  branches={branches.map(b => ({ 
+                                    parentMessageId: b.parentMessageId, 
+                                    branchText: b.branchText,
+                                    id: b.id
+                                  }))}
+                                />
+                                {/* nested branches indicator */}
+                                {(() => {
+                                  const nestedBranches = branches.filter(b => b.parentMessageId === message.id);
+                                  return nestedBranches.length > 0 && (
+                                    <div className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                      {nestedBranches.length} Branch{nestedBranches.length > 1 ? 'es' : ''}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {isCurrentBranch && isLoading && (
+                          <div className="flex gap-3 p-3 bg-gray-50">
+                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
+                              <Bot size={16} />
                             </div>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-sm font-medium text-green-800">Branch Origin</span>
-                                <span className="text-xs text-green-600 bg-green-200 px-2 py-0.5 rounded-full">
-                                  Selected Text
-                                </span>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-gray-900">Branch AI</span>
                               </div>
-                              <div className="text-sm text-green-700 bg-white border border-green-200 rounded-lg p-3">
-                                <BranchableMessage
-                                  content={branch.branchText}
-                                  messageId={`branch-origin-${branch.id}`}
-                                  onBranch={() => {}} // No branching from branch origin
-                                  onSelectBranch={() => {}} // No branch selection from branch origin
-                                  branches={[]}
-                                  className="branch-origin-text"
-                                  disableBranching={true}
-                                />
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
                               </div>
-                              <p className="text-xs text-green-600 mt-2">
-                                This branch was created from the text above. Start typing above to continue the conversation in this context.
-                              </p>
                             </div>
                           </div>
-                        </div>
-                      )}
-                      
-                      {branchMessages.map((message) => {
-                        const isFlashing = lastCompletedMessageId === message.id;
-                        return (
-                          <div key={message.id} className={`flex items-start gap-3 py-2 group transition-all duration-700 ${
-                            isFlashing ? 'bg-green-100' : ''
-                          }`}>
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                              {message.sender === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
-                            </div>
-                            <div className="flex-1 relative">
-                              <BranchableMessage
-                                content={message.content}
-                                messageId={message.id}
-                                onBranch={handleLineBranch}
-                                onSelectBranch={handleSelectBranch}
-                                branches={branches.map(b => ({ 
-                                  parentMessageId: b.parentMessageId, 
-                                  branchText: b.branchText,
-                                  id: b.id
-                                }))}
-                              />
-                              {/* nested branches indicator */}
-                              {(() => {
-                                const nestedBranches = branches.filter(b => b.parentMessageId === message.id);
-                                return nestedBranches.length > 0 && (
-                                  <div className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                                    {nestedBranches.length} Branch{nestedBranches.length > 1 ? 'es' : ''}
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {isCurrentBranch && isLoading && (
-                        <div className="flex gap-3 p-3 bg-gray-50">
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center">
-                            <Bot size={16} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-gray-900">Branch AI</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {isCurrentBranch && <div ref={branchMessagesEndRef} className="h-4" />}
-                    </div>
-                  </div>
-
-                  {/* Input Area - Fixed at bottom, show only in active branch column */}
-                  {isCurrentBranch && (
-                    <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
-                      <form onSubmit={handleSubmit} className="flex gap-2 w-full">
-                        <div className="flex-1 relative w-full">
-                          <textarea
-                            ref={textareaRef}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Continue this branch conversation..."
-                            className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-green-300 focus:ring-green-500 bg-white"
-                            rows={1}
-                            disabled={isLoading}
-                          />
-                          <button
-                            type="submit"
-                            disabled={!inputValue.trim() || isLoading}
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-green-600 hover:text-green-800"
-                          >
-                            <Send size={16} />
-                          </button>
-                        </div>
-                      </form>
-                      
-                      <div className="mt-2 text-xs text-center text-green-600 w-full">
-                        <div className="flex items-center justify-center gap-1">
-                          <GitBranch size={12} />
-                          <span>Branch conversation • Changes won't affect parent context</span>
-                        </div>
+                        )}
+                        {isCurrentBranch && <div ref={branchMessagesEndRef} className="h-4" />}
                       </div>
                     </div>
-                  )}
+
+                    {/* Input Area - Fixed at bottom, show only in active branch column */}
+                    {isCurrentBranch && (
+                      <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
+                        <form onSubmit={handleSubmit} className="flex gap-2 w-full">
+                          <div className="flex-1 relative w-full">
+                            <textarea
+                              ref={textareaRef}
+                              value={inputValue}
+                              onChange={(e) => setInputValue(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              placeholder="Continue this branch conversation..."
+                              className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-green-300 focus:ring-green-500 bg-white"
+                              rows={1}
+                              disabled={isLoading}
+                            />
+                            <button
+                              type="submit"
+                              disabled={!inputValue.trim() || isLoading}
+                              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-green-600 hover:text-green-800"
+                            >
+                              <Send size={16} />
+                            </button>
+                          </div>
+                        </form>
+                        
+                        <div className="mt-2 text-xs text-center text-green-600 w-full">
+                          <div className="flex items-center justify-center gap-1">
+                            <GitBranch size={12} />
+                            <span>Branch conversation • Changes won't affect parent context</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </ResizableColumn>
               );
             });

@@ -6,15 +6,23 @@
 html, body {
   max-width: 100vw;
   max-height: 100vh;
-  overflow-x: hidden;
-  overflow-y: hidden;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 #root {
   max-width: 100vw;
   max-height: 100vh;
-  overflow-x: hidden;
-  overflow-y: hidden;
+  overflow: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* Prevent main app containers from exceeding viewport width */
@@ -170,6 +178,16 @@ body {
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
+}
+
+/* Ensure scroll areas are properly contained */
+.flex-1[style*="overflow-y"] {
+  height: 0; /* Force flex item to shrink */
+}
+
+/* Force proper height calculation for flex containers */
+.h-full > .flex-1 {
+  min-height: 0;
 }
 
 /* Animation for typing indicator */
