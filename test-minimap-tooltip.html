@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini-Map Tooltip Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .minimap-btn {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+        }
+        .minimap-btn:hover {
+            background: #15803d;
+        }
+        .tooltip {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 8px;
+            z-index: 50;
+            background: #1f2937;
+            color: white;
+            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            white-space: nowrap;
+            animation: fadeIn 0.2s ease-in;
+        }
+        .tooltip::before {
+            content: '';
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 4px solid #1f2937;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #00aa00;
+        }
+        .button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mini-Map Tooltip Implementation Test</h1>
+    
+    <div class="status">
+        <h2>Implementation Status</h2>
+        <div class="test-item success">
+            <strong>✅ State Management:</strong> Added showMiniMapTooltip and miniMapTooltipShown states
+        </div>
+        <div class="test-item success">
+            <strong>✅ Tooltip Logic:</strong> Show tooltip when minimap is closed and flag is false
+        </div>
+        <div class="test-item success">
+            <strong>✅ Dismiss on Action:</strong> Tooltip dismisses on any user interaction
+        </div>
+        <div class="test-item success">
+            <strong>✅ Persistent Flag:</strong> Uses localStorage to remember tooltip shown state
+        </div>
+        <div class="test-item success">
+            <strong>✅ UI Implementation:</strong> Tooltip positioned under minimap icon with arrow
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>Tooltip Demo</h2>
+        <p>This simulates how the tooltip appears under the mini-map icon:</p>
+        
+        <div class="header">
+            <div>
+                <h3>Conversation Interface</h3>
+                <p>When mini-map is closed and tooltip hasn't been shown...</p>
+            </div>
+            
+            <div style="position: relative;">
+                <button class="minimap-btn" id="minimapBtn">
+                    🗺️
+                </button>
+                <div class="tooltip" id="tooltip" style="display: none;">
+                    Mini-Map
+                </div>
+            </div>
+        </div>
+        
+        <button class="button" onclick="showTooltip()">Simulate Tooltip Appearance</button>
+        <button class="button" onclick="hideTooltip()">Simulate User Action (Dismiss)</button>
+        <button class="button" onclick="resetFlag()">Reset Tooltip Flag</button>
+    </div>
+
+    <div class="status">
+        <h2>Implementation Details</h2>
+        <div class="test-item">
+            <strong>Trigger Conditions:</strong>
+            <ul>
+                <li>Branches exist (branches.length > 0)</li>
+                <li>Mini-map is closed (!isMiniMapVisible)</li>
+                <li>Tooltip hasn't been shown before (!miniMapTooltipShown)</li>
+            </ul>
+        </div>
+        <div class="test-item">
+            <strong>Dismiss Triggers:</strong>
+            <ul>
+                <li>Any click anywhere on the page</li>
+                <li>Any keydown event</li>
+                <li>Any scroll event</li>
+                <li>Any touch event</li>
+                <li>Clicking the mini-map button</li>
+            </ul>
+        </div>
+        <div class="test-item">
+            <strong>Persistence:</strong>
+            <ul>
+                <li>Uses localStorage key: 'minimap-tooltip-shown'</li>
+                <li>Once dismissed, never shows again</li>
+                <li>Can be reset by clearing localStorage</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let tooltipShown = localStorage.getItem('minimap-tooltip-shown') === 'true';
+        
+        function showTooltip() {
+            if (!tooltipShown) {
+                document.getElementById('tooltip').style.display = 'block';
+                console.log('✅ Tooltip shown');
+            } else {
+                alert('Tooltip has already been shown. Click "Reset Tooltip Flag" to test again.');
+            }
+        }
+        
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+            tooltipShown = true;
+            localStorage.setItem('minimap-tooltip-shown', 'true');
+            console.log('✅ Tooltip dismissed and flag set');
+        }
+        
+        function resetFlag() {
+            localStorage.removeItem('minimap-tooltip-shown');
+            tooltipShown = false;
+            document.getElementById('tooltip').style.display = 'none';
+            console.log('✅ Tooltip flag reset');
+        }
+        
+        // Simulate auto-dismiss on user actions
+        document.addEventListener('click', function(e) {
+            if (e.target.id !== 'minimapBtn' && document.getElementById('tooltip').style.display === 'block') {
+                hideTooltip();
+                console.log('✅ Tooltip auto-dismissed on click');
+            }
+        });
+        
+        document.addEventListener('keydown', function() {
+            if (document.getElementById('tooltip').style.display === 'block') {
+                hideTooltip();
+                console.log('✅ Tooltip auto-dismissed on keydown');
+            }
+        });
+        
+        // Check initial state
+        if (tooltipShown) {
+            console.log('ℹ️ Tooltip has been shown before (flag set in localStorage)');
+        } else {
+            console.log('ℹ️ Tooltip ready to be shown');
+        }
+    </script>
+</body>
+</html>
