@@ -487,6 +487,21 @@ const ChatInterface = ({  onSendMessage,
                 </div>
               )}
               
+              {/* Mock Mode Indicator - Show when mock AI is enabled */}
+              {settings.aiEngine === 'mock' && (
+                <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-2 rounded-lg mr-2">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Mock Mode enabled</span>
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="text-orange-600 hover:text-orange-800 text-xs underline"
+                    title="Change AI engine in settings"
+                  >
+                    Change in Settings
+                  </button>
+                </div>
+              )}
+              
               {/* Settings Button - Always show */}
               <button
                 onClick={() => setIsSettingsOpen(true)}

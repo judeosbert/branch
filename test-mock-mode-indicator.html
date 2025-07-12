@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mock Mode Indicator Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .right-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .mock-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #fef3e2;
+            border: 1px solid #fed7aa;
+            color: #c2410c;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-right: 8px;
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: #fb923c;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .settings-btn {
+            background: #f3f4f6;
+            color: #6b7280;
+            border: none;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .settings-btn:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        .change-link {
+            color: #ea580c;
+            text-decoration: underline;
+            font-size: 12px;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        .change-link:hover {
+            color: #9a3412;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #00aa00;
+        }
+        .button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+        .demo-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mock Mode Indicator Implementation Test</h1>
+    
+    <div class="status">
+        <h2>Implementation Status</h2>
+        <div class="test-item success">
+            <strong>✅ Mock Mode Detection:</strong> Shows indicator when settings.aiEngine === 'mock'
+        </div>
+        <div class="test-item success">
+            <strong>✅ Visual Design:</strong> Orange color scheme with pulsing dot animation
+        </div>
+        <div class="test-item success">
+            <strong>✅ Intuitive Text:</strong> "Mock Mode enabled" clearly communicates the state
+        </div>
+        <div class="test-item success">
+            <strong>✅ Settings Link:</strong> "Change in Settings" link opens settings popup
+        </div>
+        <div class="test-item success">
+            <strong>✅ Positioning:</strong> Located near settings button for easy discovery
+        </div>
+    </div>
+
+    <div class="demo-container">
+        <h2>Mock Mode Indicator Demo</h2>
+        <p>This simulates how the indicator appears when mock AI is enabled:</p>
+        
+        <div class="header">
+            <div>
+                <h3>Conversation Interface</h3>
+                <p>Mock AI engine is currently active</p>
+            </div>
+            
+            <div class="right-controls">
+                <div class="mock-indicator" id="mockIndicator">
+                    <div class="pulse-dot"></div>
+                    <span style="font-size: 14px; font-weight: 500;">Mock Mode enabled</span>
+                    <button class="change-link" onclick="openSettings()">
+                        Change in Settings
+                    </button>
+                </div>
+                
+                <button class="settings-btn" onclick="openSettings()">
+                    ⚙️
+                </button>
+            </div>
+        </div>
+        
+        <button class="button" onclick="toggleMockMode()">Toggle Mock Mode (Demo)</button>
+        <button class="button" onclick="openSettings()">Open Settings</button>
+    </div>
+
+    <div class="status">
+        <h2>Implementation Details</h2>
+        <div class="test-item">
+            <strong>Trigger Condition:</strong>
+            <pre>settings.aiEngine === 'mock'</pre>
+        </div>
+        <div class="test-item">
+            <strong>Visual Elements:</strong>
+            <ul>
+                <li>Orange background (bg-orange-50) with orange border (border-orange-200)</li>
+                <li>Orange text color (text-orange-700)</li>
+                <li>Pulsing orange dot (animate-pulse) for visual attention</li>
+                <li>Underlined "Change in Settings" link</li>
+            </ul>
+        </div>
+        <div class="test-item">
+            <strong>User Actions:</strong>
+            <ul>
+                <li>Clicking "Change in Settings" opens the settings popup</li>
+                <li>Settings button remains accessible for other configurations</li>
+                <li>Indicator disappears when switching to real AI engines</li>
+            </ul>
+        </div>
+        <div class="test-item">
+            <strong>Location:</strong>
+            <ul>
+                <li>Positioned right before the settings button</li>
+                <li>Uses margin-right: 8px to maintain spacing</li>
+                <li>Integrates naturally with existing header controls</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>User Experience Benefits</h2>
+        <div class="test-item success">
+            <strong>✅ Clear Communication:</strong> Users immediately understand they're in demo mode
+        </div>
+        <div class="test-item success">
+            <strong>✅ Easy to Change:</strong> Direct link to settings for switching to real AI
+        </div>
+        <div class="test-item success">
+            <strong>✅ Non-intrusive:</strong> Visible but doesn't overwhelm the interface
+        </div>
+        <div class="test-item success">
+            <strong>✅ Discoverable:</strong> Located near settings where users expect configuration options
+        </div>
+    </div>
+
+    <script>
+        let mockMode = true;
+        
+        function toggleMockMode() {
+            mockMode = !mockMode;
+            const indicator = document.getElementById('mockIndicator');
+            if (mockMode) {
+                indicator.style.display = 'flex';
+                console.log('✅ Mock mode enabled - indicator shown');
+            } else {
+                indicator.style.display = 'none';
+                console.log('✅ Mock mode disabled - indicator hidden');
+            }
+        }
+        
+        function openSettings() {
+            alert('Settings popup would open here. User can change from Mock AI to OpenAI engines.');
+            console.log('✅ Settings popup triggered');
+        }
+        
+        // Simulate real app behavior
+        console.log('ℹ️ Mock Mode Indicator Demo Ready');
+        console.log('ℹ️ Mock mode currently:', mockMode ? 'enabled' : 'disabled');
+    </script>
+</body>
+</html>
