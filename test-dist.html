@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Built App</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .debug {
+            background: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <h1>Testing Built App</h1>
+    <div id="status" class="debug">Loading...</div>
+    <div id="root"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        // Test if CSS loaded
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = './dist/assets/index-B4jjjKjy.css';
+        link.onload = () => {
+            statusDiv.innerHTML += '<br>✓ CSS loaded successfully';
+            statusDiv.className = 'debug success';
+        };
+        link.onerror = () => {
+            statusDiv.innerHTML += '<br>✗ CSS failed to load';
+            statusDiv.className = 'debug error';
+        };
+        document.head.appendChild(link);
+        
+        // Test if JS loads
+        const script = document.createElement('script');
+        script.type = 'module';
+        script.src = './dist/assets/index-Cnf1nl4U.js';
+        script.onload = () => {
+            statusDiv.innerHTML += '<br>✓ JavaScript loaded successfully';
+            setTimeout(() => {
+                const root = document.getElementById('root');
+                if (root.innerHTML.trim()) {
+                    statusDiv.innerHTML += '<br>✓ React app rendered successfully';
+                } else {
+                    statusDiv.innerHTML += '<br>✗ React app did not render (root is empty)';
+                    statusDiv.className = 'debug error';
+                }
+            }, 1000);
+        };
+        script.onerror = () => {
+            statusDiv.innerHTML += '<br>✗ JavaScript failed to load';
+            statusDiv.className = 'debug error';
+        };
+        document.head.appendChild(script);
+        
+        // Capture console errors
+        window.addEventListener('error', (event) => {
+            statusDiv.innerHTML += `<br>✗ Error: ${event.error.message}`;
+            statusDiv.className = 'debug error';
+        });
+        
+        // Capture unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            statusDiv.innerHTML += `<br>✗ Unhandled Promise Rejection: ${event.reason}`;
+            statusDiv.className = 'debug error';
+        });
+    </script>
+</body>
+</html>

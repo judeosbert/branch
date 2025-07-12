@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <div id="status" style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-family: monospace; font-size: 12px; z-index: 9999;">
+        Loading...
+    </div>
+    
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        function TestApp() {
+            const [message, setMessage] = useState('React is working!');
+            
+            useEffect(() => {
+                document.getElementById('status').innerHTML = 'React Loaded';
+                console.log('React app mounted successfully');
+            }, []);
+            
+            return (
+                <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+                    <h1>Branch App Test</h1>
+                    <p>{message}</p>
+                    <button onClick={() => setMessage('Button clicked!')}>
+                        Test Button
+                    </button>
+                    <div style={{ marginTop: '20px', padding: '10px', background: '#f0f0f0', borderRadius: '5px' }}>
+                        <h3>If you see this, React is working correctly!</h3>
+                        <p>The issue might be with the built version or server configuration.</p>
+                    </div>
+                </div>
+            );
+        }
+        
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<TestApp />);
+    </script>
+</body>
+</html>

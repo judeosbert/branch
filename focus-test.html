@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Focus Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Focus and Auto-Focus Test</h1>
+    <p>This page tests various focus scenarios that might cause hanging issues.</p>
+    
+    <div class="test-container">
+        <h2>Test 1: Basic Auto-Focus</h2>
+        <p>This textarea should auto-focus when the page loads (after 100ms delay):</p>
+        <textarea id="autoFocusTest" placeholder="This should be auto-focused..."></textarea>
+        <div id="autoFocusStatus" class="status warning">Testing auto-focus...</div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test 2: Manual Focus</h2>
+        <p>Click the button to focus this textarea:</p>
+        <textarea id="manualFocusTest" placeholder="Click button to focus this..."></textarea>
+        <button onclick="testManualFocus()">Focus Textarea</button>
+        <div id="manualFocusStatus" class="status warning">Ready for manual focus test</div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test 3: RequestAnimationFrame Focus</h2>
+        <p>This textarea uses requestAnimationFrame for focusing:</p>
+        <textarea id="rafFocusTest" placeholder="RequestAnimationFrame focus test..."></textarea>
+        <button onclick="testRAFFocus()">Focus with RAF</button>
+        <div id="rafFocusStatus" class="status warning">Ready for RAF focus test</div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test 4: Key Capture</h2>
+        <p>Press any key to test key capture and focus:</p>
+        <textarea id="keyCaptureTest" placeholder="Press any key to focus and add text..."></textarea>
+        <div id="keyCaptureStatus" class="status warning">Press any key to test</div>
+    </div>
+    
+    <div class="test-container">
+        <h2>Test Log</h2>
+        <div id="testLog" class="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <script>
+        let logCount = 0;
+        
+        function log(message) {
+            const logDiv = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function clearLog() {
+            document.getElementById('testLog').innerHTML = '';
+            logCount = 0;
+        }
+        
+        function updateStatus(elementId, message, type = 'success') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+        
+        function testManualFocus() {
+            const textarea = document.getElementById('manualFocusTest');
+            try {
+                textarea.focus();
+                updateStatus('manualFocusStatus', 'Manual focus successful', 'success');
+                log('Manual focus test: SUCCESS');
+            } catch (error) {
+                updateStatus('manualFocusStatus', `Manual focus failed: ${error.message}`, 'error');
+                log(`Manual focus test: ERROR - ${error.message}`);
+            }
+        }
+        
+        function testRAFFocus() {
+            const textarea = document.getElementById('rafFocusTest');
+            try {
+                requestAnimationFrame(() => {
+                    textarea.focus();
+                    updateStatus('rafFocusStatus', 'RAF focus successful', 'success');
+                    log('RAF focus test: SUCCESS');
+                });
+            } catch (error) {
+                updateStatus('rafFocusStatus', `RAF focus failed: ${error.message}`, 'error');
+                log(`RAF focus test: ERROR - ${error.message}`);
+            }
+        }
+        
+        // Test 1: Auto-focus on page load
+        window.addEventListener('load', () => {
+            log('Page loaded, testing auto-focus...');
+            setTimeout(() => {
+                const textarea = document.getElementById('autoFocusTest');
+                try {
+                    textarea.focus();
+                    updateStatus('autoFocusStatus', 'Auto-focus successful', 'success');
+                    log('Auto-focus test: SUCCESS');
+                } catch (error) {
+                    updateStatus('autoFocusStatus', `Auto-focus failed: ${error.message}`, 'error');
+                    log(`Auto-focus test: ERROR - ${error.message}`);
+                }
+            }, 100);
+        });
+        
+        // Test 4: Key capture
+        document.addEventListener('keydown', (e) => {
+            // Don't intercept if user is already in an input field
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+            
+            // Don't intercept special keys, function keys, or key combinations
+            if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || 
+                e.key.length > 1 || // Skip special keys like 'Enter', 'Backspace', etc.
+                e.key === ' ') { // Skip space
+                return;
+            }
+            
+            const textarea = document.getElementById('keyCaptureTest');
+            if (textarea) {
+                e.preventDefault();
+                textarea.value = e.key;
+                
+                // Test with requestAnimationFrame
+                requestAnimationFrame(() => {
+                    try {
+                        textarea.focus();
+                        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+                        updateStatus('keyCaptureStatus', `Key captured: "${e.key}"`, 'success');
+                        log(`Key capture test: SUCCESS - captured "${e.key}"`);
+                    } catch (error) {
+                        updateStatus('keyCaptureStatus', `Key capture failed: ${error.message}`, 'error');
+                        log(`Key capture test: ERROR - ${error.message}`);
+                    }
+                });
+            }
+        });
+        
+        // Check if page is hanging
+        let hangCheckCount = 0;
+        const hangCheckInterval = setInterval(() => {
+            hangCheckCount++;
+            log(`Page alive check #${hangCheckCount}`);
+            
+            if (hangCheckCount > 10) {
+                clearInterval(hangCheckInterval);
+                log('Page seems to be running normally (completed 10 checks)');
+            }
+        }, 1000);
+        
+        log('Focus test page initialized');
+    </script>
+</body>
+</html>

@@ -12,6 +12,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
+  background-color: white;
 }
 
 #root {
@@ -23,6 +24,7 @@ html, body {
   left: 0;
   right: 0;
   bottom: 0;
+  background-color: white;
 }
 
 /* Prevent main app containers from exceeding viewport width */

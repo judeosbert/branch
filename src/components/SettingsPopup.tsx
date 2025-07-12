@@ -5,6 +5,7 @@ import { versionService } from '../services/versionService';
 export interface SettingsConfig {
   openaiApiKey: string;
   aiEngine: 'openai-gpt4' | 'openai-gpt3.5' | 'openai-gpt4o' | 'mock';
+  model: string;
 }
 
 interface SettingsPopupProps {
@@ -63,9 +64,17 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   }, [apiKey, selectedEngine, currentSettings]);
 
   const handleSave = () => {
+    const modelMap = {
+      'openai-gpt4o': 'gpt-4o',
+      'openai-gpt4': 'gpt-4',
+      'openai-gpt3.5': 'gpt-3.5-turbo',
+      'mock': 'mock'
+    };
+
     onSave({
       openaiApiKey: apiKey,
-      aiEngine: selectedEngine
+      aiEngine: selectedEngine,
+      model: modelMap[selectedEngine]
     });
     onClose();
   };

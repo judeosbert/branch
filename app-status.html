@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Branch App Status Check</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .status-card {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .status-success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .status-error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .status-warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 10px 10px 0;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .button-secondary {
+            background: #6c757d;
+        }
+        .button-secondary:hover {
+            background: #545b62;
+        }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .check-list {
+            list-style: none;
+            padding: 0;
+        }
+        .check-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .check-list li:last-child {
+            border-bottom: none;
+        }
+        .check-mark {
+            color: #28a745;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .x-mark {
+            color: #dc3545;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .loading {
+            color: #ffc107;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌳 Branch App - Status Check</h1>
+        
+        <div class="status-card">
+            <h2>Current Status</h2>
+            <div id="overall-status" class="status-warning">
+                <strong>⏳ Checking app status...</strong>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h2>Build Verification</h2>
+            <ul class="check-list" id="build-checks">
+                <li id="check-dist"><span class="loading">⏳</span> Checking dist directory...</li>
+                <li id="check-html"><span class="loading">⏳</span> Checking index.html...</li>
+                <li id="check-css"><span class="loading">⏳</span> Checking CSS files...</li>
+                <li id="check-js"><span class="loading">⏳</span> Checking JavaScript files...</li>
+                <li id="check-assets"><span class="loading">⏳</span> Checking static assets...</li>
+            </ul>
+        </div>
+
+        <div class="status-card">
+            <h2>Quick Actions</h2>
+            <a href="./dist/index.html" class="button" target="_blank">
+                🚀 Open Main App
+            </a>
+            <a href="./dist/debug.html" class="button button-secondary" target="_blank">
+                🔍 Open Debug Page
+            </a>
+            <button class="button button-secondary" onclick="runDiagnostics()">
+                ⚡ Run Diagnostics
+            </button>
+        </div>
+
+        <div class="status-card">
+            <h2>Recent Changes</h2>
+            <ul>
+                <li>✅ Fixed asset paths (now using relative paths)</li>
+                <li>✅ Added error handling to prevent crashes</li>
+                <li>✅ Downgraded React from 19 to 18 for stability</li>
+                <li>✅ Added null checks for AI service</li>
+                <li>✅ Created test versions to isolate issues</li>
+            </ul>
+        </div>
+
+        <div class="status-card">
+            <h2>If Still Having Issues</h2>
+            <div class="code">
+                <strong>Manual Fix Steps:</strong><br>
+                1. cd /Users/jude.osby/personal/comfy<br>
+                2. npm install<br>
+                3. rm -rf dist<br>
+                4. npm run build<br>
+                5. open dist/index.html
+            </div>
+        </div>
+
+        <div class="status-card" id="diagnostics-output" style="display: none;">
+            <h2>Diagnostics Results</h2>
+            <div id="diagnostics-content" class="code"></div>
+        </div>
+    </div>
+
+    <script>
+        // Check build files
+        async function checkBuildFiles() {
+            const checks = [
+                { id: 'check-dist', url: './dist/', name: 'dist directory' },
+                { id: 'check-html', url: './dist/index.html', name: 'index.html' },
+                { id: 'check-css', url: './dist/assets/index-B4jjjKjy.css', name: 'CSS files' },
+                { id: 'check-js', url: './dist/assets/index-Cnf1nl4U.js', name: 'JavaScript files' },
+                { id: 'check-assets', url: './dist/branch-icon.svg', name: 'static assets' }
+            ];
+
+            let allGood = true;
+
+            for (const check of checks) {
+                try {
+                    const response = await fetch(check.url);
+                    const element = document.getElementById(check.id);
+                    
+                    if (response.ok) {
+                        element.innerHTML = `<span class="check-mark">✅</span> ${check.name} - OK`;
+                    } else {
+                        element.innerHTML = `<span class="x-mark">❌</span> ${check.name} - Not found (${response.status})`;
+                        allGood = false;
+                    }
+                } catch (error) {
+                    const element = document.getElementById(check.id);
+                    element.innerHTML = `<span class="x-mark">❌</span> ${check.name} - Error: ${error.message}`;
+                    allGood = false;
+                }
+            }
+
+            // Update overall status
+            const overallStatus = document.getElementById('overall-status');
+            if (allGood) {
+                overallStatus.className = 'status-success';
+                overallStatus.innerHTML = '<strong>✅ All systems operational! App should be working.</strong>';
+            } else {
+                overallStatus.className = 'status-error';
+                overallStatus.innerHTML = '<strong>❌ Some issues detected. App may not work properly.</strong>';
+            }
+        }
+
+        // Run diagnostics
+        async function runDiagnostics() {
+            const diagnosticsOutput = document.getElementById('diagnostics-output');
+            const diagnosticsContent = document.getElementById('diagnostics-content');
+            
+            diagnosticsOutput.style.display = 'block';
+            diagnosticsContent.innerHTML = 'Running diagnostics...\n\n';
+            
+            let report = '';
+            
+            // Test React loading
+            try {
+                await fetch('./dist/assets/index-Cnf1nl4U.js');
+                report += '✅ React bundle is accessible\n';
+            } catch (error) {
+                report += `❌ React bundle error: ${error.message}\n`;
+            }
+            
+            // Test CSS loading
+            try {
+                await fetch('./dist/assets/index-B4jjjKjy.css');
+                report += '✅ CSS bundle is accessible\n';
+            } catch (error) {
+                report += `❌ CSS bundle error: ${error.message}\n`;
+            }
+            
+            // Test main HTML
+            try {
+                const response = await fetch('./dist/index.html');
+                const html = await response.text();
+                
+                if (html.includes('<!doctype html>')) {
+                    report += '✅ HTML structure is valid\n';
+                } else {
+                    report += '❌ HTML structure may be corrupted\n';
+                }
+                
+                if (html.includes('./assets/')) {
+                    report += '✅ Asset paths are relative\n';
+                } else {
+                    report += '❌ Asset paths may be incorrect\n';
+                }
+            } catch (error) {
+                report += `❌ HTML check error: ${error.message}\n`;
+            }
+            
+            report += '\n' + new Date().toLocaleString() + ' - Diagnostics complete';
+            diagnosticsContent.innerHTML = report;
+        }
+
+        // Run checks on page load
+        document.addEventListener('DOMContentLoaded', checkBuildFiles);
+    </script>
+</body>
+</html>

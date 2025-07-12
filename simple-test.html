@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .test-content {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="test-content">
+            <h1>Simple Test - This should be visible</h1>
+            <p>If you can see this, the HTML is loading correctly.</p>
+        </div>
+    </div>
+    <script>
+        console.log('Simple test script loaded');
+        document.getElementById('root').innerHTML += '<div class="test-content"><h2>JavaScript is working!</h2></div>';
+    </script>
+</body>
+</html>

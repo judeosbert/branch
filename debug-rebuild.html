@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rebuild Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Debug: Rebuild and Test</h1>
+        
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Open Terminal</li>
+            <li>Run: <code>cd /Users/jude.osby/personal/comfy</code></li>
+            <li>Run: <code>npm install</code></li>
+            <li>Run: <code>rm -rf dist && npm run build</code></li>
+            <li>Check if dist/index.html was created</li>
+            <li>Open <code>dist/index.html</code> in browser</li>
+        </ol>
+
+        <h2>Current Status:</h2>
+        <div id="status" class="output">
+            Checking current state...
+        </div>
+
+        <h2>Manual Steps:</h2>
+        <p>If the app still shows a blank page, try:</p>
+        <ul>
+            <li>Check browser console for JavaScript errors</li>
+            <li>Verify CSS and JS files are loading</li>
+            <li>Test with a simple React app first</li>
+            <li>Check if the issue is with React 19 vs React 18</li>
+        </ul>
+
+        <h2>Quick Test:</h2>
+        <p>Currently testing with a simple React app instead of the full app.</p>
+        <p>If the simple app works, then the issue is with the complex app code.</p>
+        <p>If the simple app doesn't work, then the issue is with the build process or React setup.</p>
+    </div>
+
+    <script>
+        const statusDiv = document.getElementById('status');
+        
+        // Test if we can fetch the built files
+        fetch('./dist/index.html')
+            .then(response => response.text())
+            .then(html => {
+                statusDiv.innerHTML = 'Built index.html found:\n' + html;
+                statusDiv.className = 'output success';
+            })
+            .catch(error => {
+                statusDiv.innerHTML = 'Error fetching built files: ' + error.message;
+                statusDiv.className = 'output error';
+                
+                // Try to check if dist directory exists
+                fetch('./dist/')
+                    .then(response => {
+                        if (response.ok) {
+                            statusDiv.innerHTML += '\nDist directory exists but index.html not found';
+                        } else {
+                            statusDiv.innerHTML += '\nDist directory does not exist - build may have failed';
+                        }
+                    })
+                    .catch(e => {
+                        statusDiv.innerHTML += '\nCannot access dist directory: ' + e.message;
+                    });
+            });
+    </script>
+</body>
+</html>

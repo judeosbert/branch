@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import ChatInterface from './components/ChatInterface';
 import ConversationHistorySidebar from './components/ConversationHistorySidebar';
-import { AIService } from './services/aiService';
+import { EnhancedAIService } from './services/enhancedAIService';
 import { SettingsService } from './services/settingsService';
 import { versionService } from './services/versionService';
 import { conversationHistoryService, type ConversationHistory } from './services/conversationHistoryService';
 import type { SettingsConfig } from './components/SettingsPopup';
+import type { FileAttachment } from './components/FileUpload';
 import { v4 as uuidv4 } from 'uuid';
 import type { ConversationBranch } from './types';
 
@@ -15,6 +16,7 @@ interface Message {
   sender: 'user' | 'assistant';
   timestamp: Date;
   branchId?: string;
+  attachments?: FileAttachment[];
 }
 
 function App() {
@@ -28,44 +30,62 @@ function App() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
   // Create AI service instance with current settings
-  const aiService = new AIService(settings);
+  const aiService = useMemo(() => {
+    try {
+      return new EnhancedAIService(settings);
+    } catch (error) {
+      console.error('Error creating AI service:', error);
+      // Return a fallback service or handle gracefully
+      return null;
+    }
+  }, [settings]);
 
   // Handle settings updates
   const handleSettingsChange = useCallback((newSettings: SettingsConfig) => {
-    setSettings(newSettings);
-    SettingsService.saveSettings(newSettings);
-    versionService.incrementChange(); // Track settings change
+    try {
+      setSettings(newSettings);
+      SettingsService.saveSettings(newSettings);
+      versionService.incrementChange(); // Track settings change
+    } catch (error) {
+      console.error('Error updating settings:', error);
+    }
   }, []);
 
   // Initialize conversation history
   useEffect(() => {
-    const history = conversationHistoryService.getHistory();
-    setConversationHistory(history);
-    
-    const currentId = conversationHistoryService.getCurrentConversationId();
-    if (currentId) {
-      const currentConv = conversationHistoryService.getCurrentConversation();
-      if (currentConv) {
-        setCurrentConversationId(currentId);
-        setMessages(currentConv.messages);
-        setBranches(currentConv.branches);
-        setCurrentBranchId(currentConv.currentBranchId);
-      }
+    try {
+      const history = conversationHistoryService.getHistory();
+      setConversationHistory(history);
+      
+      // Always start with a new conversation on page load
+      const newId = conversationHistoryService.createNewConversation();
+      setCurrentConversationId(newId);
+      setMessages([]);
+      setBranches([]);
+      setCurrentBranchId(null);
+    } catch (error) {
+      console.error('Error initializing conversation history:', error);
     }
   }, []);
 
   // Load initial messages and convert to chat format
   useEffect(() => {
-    const initialMessages = aiService.getMessageHistory();
-    const chatMessages: Message[] = initialMessages.map((msg) => ({
-      id: msg.id,
-      content: msg.content,
-      sender: msg.sender,
-      timestamp: msg.timestamp,
-      branchId: undefined, // AIService doesn't include branchId
-    }));
-    setMessages(chatMessages);
-  }, [settings]); // Re-run when settings change
+    if (!aiService) return;
+    
+    try {
+      const initialMessages = aiService.getMessageHistory();
+      const chatMessages: Message[] = initialMessages.map((msg: any) => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp,
+        branchId: undefined, // AIService doesn't include branchId
+      }));
+      setMessages(chatMessages);
+    } catch (error) {
+      console.error('Error loading initial messages:', error);
+    }
+  }, [aiService]); // Re-run when aiService changes
 
   // Helper function to get relevant conversation history for a branch
   const getRelevantHistory = useCallback((branchId?: string | null) => {
@@ -109,7 +129,7 @@ function App() {
     return history;
   }, [messages, branches]);
 
-  const handleSendMessage = useCallback(async (messageContent: string, branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => {
+  const handleSendMessage = useCallback(async (messageContent: string, attachments: FileAttachment[] = [], branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => {
     if (isLoading) return;
     
     // Track message send as a change
@@ -122,6 +142,7 @@ function App() {
       sender: 'user',
       timestamp: new Date(),
       branchId: branchId || currentBranchId || undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
     
     setMessages(prev => [...prev, userMessage]);
@@ -143,6 +164,15 @@ function App() {
       // Build conversation history for the current branch
       const relevantHistory = getRelevantHistory(branchId || currentBranchId);
       
+      // Convert to AI service format
+      const aiHistory = relevantHistory.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        sender: msg.sender,
+        timestamp: msg.timestamp,
+        attachments: (messages.find(m => m.id === msg.id)?.attachments) || []
+      }));
+      
       // Prepare branch context if provided
       let aiBranchContext: { selectedText: string; sourceMessageId: string; sourceMessage: string } | undefined;
       if (branchContext) {
@@ -156,8 +186,15 @@ function App() {
         }
       }
       
+      // Check if AI service is available
+      if (!aiService) {
+        console.error('AI service not available');
+        setIsLoading(false);
+        return;
+      }
+      
       // Stream the response
-      const stream = aiService.sendMessageStream(messageContent, relevantHistory, aiBranchContext);
+      const stream = aiService.sendMessageStream(messageContent, attachments, aiHistory, aiBranchContext);
       let accumulatedContent = '';
       
       for await (const chunk of stream) {
@@ -223,6 +260,11 @@ function App() {
 
       // Get the conversation history up to this point
       const history = getRelevantHistory(parentMessage.branchId || null);
+      
+      // Check if AI service is available
+      if (!aiService) {
+        return `Branch from "${branchText.substring(0, 20)}..."`;
+      }
       
       // Use AI service to generate title
       const title = await aiService.generateBranchTitle(branchText, history);
@@ -361,6 +403,34 @@ function App() {
     setIsHistorySidebarOpen(!isHistorySidebarOpen);
   }, [isHistorySidebarOpen]);
 
+  // Handle file analysis
+  const handleAnalyzeFile = useCallback(async (file: FileAttachment) => {
+    try {
+      if (!aiService) {
+        console.error('AI service not available for file analysis');
+        return;
+      }
+      
+      const analysis = await aiService.analyzeFile(file);
+      
+      // Find the message with this file and update it with analysis results
+      setMessages(prev => prev.map(msg => 
+        msg.attachments?.some(attachment => attachment.id === file.id) 
+          ? {
+              ...msg,
+              attachments: msg.attachments?.map(attachment => 
+                attachment.id === file.id 
+                  ? { ...attachment, analysisResult: analysis }
+                  : attachment
+              )
+            }
+          : msg
+      ));
+    } catch (error) {
+      console.error('Error analyzing file:', error);
+    }
+  }, [aiService]);
+
   // Filter messages based on current branch
   const getDisplayMessages = () => {
     if (!currentBranchId) {
@@ -441,7 +511,7 @@ function App() {
   };
 
   return (
-    <div className="App h-screen w-screen overflow-hidden max-w-full" style={{ maxWidth: '100vw' }}>
+    <div className="App h-screen w-screen overflow-hidden max-w-full bg-white" style={{ maxWidth: '100vw' }}>
       <ConversationHistorySidebar
         isOpen={isHistorySidebarOpen}
         onToggle={handleToggleHistorySidebar}
@@ -453,7 +523,7 @@ function App() {
         onClearHistory={handleClearHistory}
       />
       
-      <div className={`h-full transition-all duration-300 ${isHistorySidebarOpen ? 'ml-80' : 'ml-0'} max-w-full overflow-hidden`} style={{ maxWidth: isHistorySidebarOpen ? 'calc(100vw - 320px)' : '100vw' }}>
+      <div className={`h-full transition-all duration-300 ${isHistorySidebarOpen ? 'ml-80' : 'ml-0'} max-w-full overflow-hidden bg-white`} style={{ maxWidth: isHistorySidebarOpen ? 'calc(100vw - 320px)' : '100vw' }}>
         <ChatInterface 
           messages={getDisplayMessages()}
           branches={getVisibleBranches()}
@@ -467,6 +537,7 @@ function App() {
           onNewConversation={handleNewConversation}
           isHistorySidebarOpen={isHistorySidebarOpen}
           onToggleHistorySidebar={handleToggleHistorySidebar}
+          onAnalyzeFile={handleAnalyzeFile}
         />
       </div>
     </div>

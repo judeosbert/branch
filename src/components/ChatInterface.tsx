@@ -1,14 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings, Plus, History } from 'lucide-react';
+import { User, Bot, Copy, ThumbsUp, ThumbsDown, GitBranch, MessageCircle, Settings, Plus, History } from 'lucide-react';
 import WelcomeScreen from './WelcomeScreen';
 import Breadcrumb from './Breadcrumb';
 import DraggableMiniMap from './DraggableMiniMap';
 import SettingsPopup from './SettingsPopup';
-import BranchableMessage from './BranchableMessage';
+import MessageRenderer from './MessageRenderer';
 import MarkdownMessage from './MarkdownMessage';
+import EnhancedInput from './EnhancedInput';
 import ResizableColumn from './ResizableColumn';
 import type { ConversationBranch } from '../types';
 import type { SettingsConfig } from './SettingsPopup';
+import type { FileAttachment } from './FileUpload';
 
 interface Message {
   id: string;
@@ -16,10 +18,11 @@ interface Message {
   sender: 'user' | 'assistant';
   timestamp: Date;
   branchId?: string;
+  attachments?: FileAttachment[];
 }
 
 interface ChatInterfaceProps {
-  onSendMessage: (message: string, branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => void;
+  onSendMessage: (message: string, attachments: FileAttachment[], branchId?: string, branchContext?: { selectedText: string; sourceMessageId: string }) => void;
   onCreateBranch: (parentMessageId: string, branchText: string) => Promise<string>;
   messages: Message[];
   branches: ConversationBranch[];
@@ -31,12 +34,12 @@ interface ChatInterfaceProps {
   onNewConversation: () => void;
   isHistorySidebarOpen: boolean;
   onToggleHistorySidebar: () => void;
+  onAnalyzeFile?: (file: FileAttachment) => Promise<void>;
 }
 
-const ChatInterface = ({ 
-  onSendMessage, 
+const ChatInterface = ({  onSendMessage, 
   onCreateBranch,
-  messages, 
+  messages,
   branches,
   currentBranchId,
   onNavigateToBranch,
@@ -45,7 +48,8 @@ const ChatInterface = ({
   onSettingsChange,
   onNewConversation,
   isHistorySidebarOpen,
-  onToggleHistorySidebar
+  onToggleHistorySidebar,
+  onAnalyzeFile
 }: ChatInterfaceProps) => {
   // Create branch from line or block
   const handleLineBranch = useCallback(async (messageId: string, branchText: string) => {
@@ -181,9 +185,8 @@ const ChatInterface = ({
   }, [currentBranchId, isLoading]);
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
+  const handleSubmit = (input: { content: string; attachments: FileAttachment[] }) => {
+    if ((!input.content.trim() && input.attachments.length === 0) || isLoading) return;
     
     // Check if we're in a branch and if this is the first message
     let branchContext: { selectedText: string; sourceMessageId: string } | undefined;
@@ -195,16 +198,8 @@ const ChatInterface = ({
       }
     }
     
-    onSendMessage(inputValue, currentBranchId || undefined, branchContext);
+    onSendMessage(input.content, input.attachments, currentBranchId || undefined, branchContext);
     setInputValue('');
-  };
-
-  // Handle keyboard shortcuts
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e as any);
-    }
   };
 
   // Handle copy functionality
@@ -274,14 +269,52 @@ const ChatInterface = ({
     }
   }, []);
 
-  // Keyboard shortcuts for column resizing
+  // Keyboard event listeners - Combined welcome mode and shortcuts
   useEffect(() => {
+    console.log('ChatInterface: Setting up keyboard listeners...');
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only handle shortcuts when not in input fields
+      // Calculate welcome mode state at the time of event
+      const isWelcomeMode = branches.length === 0 && messages.filter(msg => !msg.branchId).length === 0;
+      
+      // Don't intercept if user is already in an input field
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
+      
+      // Welcome mode functionality - capture single characters
+      if (isWelcomeMode) {
+        console.log('Welcome mode key pressed:', e.key);
+        // Don't intercept special keys, function keys, or key combinations
+        if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || 
+            e.key.length > 1 || // Skip special keys like 'Enter', 'Backspace', etc.
+            e.key === ' ' && inputValue.length === 0) { // Skip space if input is empty
+          // Continue to check for shortcuts below
+        } else if (!isSettingsOpen) {
+          // Focus the input and add the character
+          if (textareaRef.current) {
+            console.log('Setting input value and focusing...');
+            e.preventDefault();
+            setInputValue(e.key);
+            // Use requestAnimationFrame instead of setTimeout
+            requestAnimationFrame(() => {
+              if (textareaRef.current) {
+                try {
+                  textareaRef.current.focus();
+                  // Set cursor to end of text
+                  textareaRef.current.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
+                  console.log('Focus and cursor positioning successful');
+                } catch (error) {
+                  console.warn('Failed to focus or set cursor:', error);
+                }
+              }
+            });
+            return; // Don't process shortcuts if we captured the key
+          }
+        }
+      }
 
+      // Keyboard shortcuts for column resizing
       // Ctrl/Cmd + [ : Narrow current column
       if ((e.ctrlKey || e.metaKey) && e.key === '[') {
         e.preventDefault();
@@ -322,8 +355,10 @@ const ChatInterface = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [currentBranchId, getColumnWidth, updateColumnWidth]);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [branches.length, messages.length, inputValue.length, isSettingsOpen, currentBranchId, getColumnWidth, updateColumnWidth]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 w-full max-w-full overflow-hidden" style={{ maxWidth: '100vw', maxHeight: '100vh' }}>
@@ -427,7 +462,7 @@ const ChatInterface = ({
           
           {/* No branches - Simple centered layout */}
           {branches.length === 0 && (
-            <div className="flex flex-col h-full bg-white max-w-4xl w-full mx-auto overflow-hidden">
+            <div className="flex flex-col h-full bg-white w-full overflow-hidden">
               {/* Main Content Area - Either Welcome Screen or Messages */}
               <div className="flex-1 overflow-y-auto bg-white min-h-0"
                    onScroll={(e) => e.stopPropagation()}>
@@ -443,8 +478,9 @@ const ChatInterface = ({
 
                 {/* Scrollable Messages Area - Show when messages exist */}
                 {messages.filter(msg => !msg.branchId).length > 0 && (
-                  <div className="max-w-4xl mx-auto">
+                  <div className="w-full">
                     <div className="divide-y divide-gray-100 p-4">
+                      {/* MAIN CHAT AREA */}
                       {messages.filter(msg => !msg.branchId).map((message) => {
                         const isFlashing = lastCompletedMessageId === message.id;
                         return (
@@ -455,11 +491,15 @@ const ChatInterface = ({
                               {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
                             </div>
                             <div className="flex-1 relative">
-                              <BranchableMessage
+                              <MessageRenderer
                                 content={message.content}
+                                attachments={message.attachments}
                                 messageId={message.id}
+                                sender={message.sender}
                                 onBranch={handleLineBranch}
                                 onSelectBranch={handleSelectBranch}
+                                onCopy={handleCopy}
+                                onAnalyzeFile={onAnalyzeFile}
                                 branches={branches.map(b => ({ 
                                   parentMessageId: b.parentMessageId, 
                                   branchText: b.branchText,
@@ -506,27 +546,15 @@ const ChatInterface = ({
 
               {/* Input Area - Fixed at bottom */}
               <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
-                <form onSubmit={handleSubmit} className="flex gap-2 w-full">
-                  <div className="flex-1 relative w-full">
-                    <textarea
-                      ref={textareaRef}
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Message Branch AI..."
-                      className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
-                      rows={1}
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!inputValue.trim() || isLoading}
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-gray-500"
-                    >
-                      <Send size={16} />
-                    </button>
-                  </div>
-                </form>
+                <EnhancedInput
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSubmit={handleSubmit}
+                  placeholder="Message Branch AI..."
+                  disabled={isLoading}
+                  className="w-full"
+                />
                 
                 <div className="mt-2 text-xs text-center text-gray-500 w-full">
                   <span>Branch AI can make mistakes. Check important info.</span>
@@ -565,6 +593,7 @@ const ChatInterface = ({
                   <div className="flex-1 overflow-y-auto bg-white min-h-0"
                        onScroll={(e) => e.stopPropagation()}>
                     <div className="divide-y divide-gray-100 p-4">
+                      {/* MAIN COLUMN MESSAGES */}
                       {messages.filter(msg => !msg.branchId).map((message) => {
                         const isFlashing = lastCompletedMessageId === message.id;
                         return (
@@ -575,11 +604,15 @@ const ChatInterface = ({
                               {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
                             </div>
                             <div className="flex-1 relative">
-                              <BranchableMessage
+                              <MessageRenderer
                                 content={message.content}
+                                attachments={message.attachments}
                                 messageId={message.id}
+                                sender={message.sender}
                                 onBranch={handleLineBranch}
                                 onSelectBranch={handleSelectBranch}
+                                onCopy={handleCopy}
+                                onAnalyzeFile={onAnalyzeFile}
                                 branches={branches.map(b => ({ 
                                   parentMessageId: b.parentMessageId, 
                                   branchText: b.branchText,
@@ -625,27 +658,14 @@ const ChatInterface = ({
                   {/* Input Area - Fixed at bottom, show only when not in active branch */}
                   {!currentBranchId && (
                     <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
-                      <form onSubmit={handleSubmit} className="flex gap-2 w-full">
-                        <div className="flex-1 relative w-full">
-                          <textarea
-                            ref={textareaRef}
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Message Branch AI..."
-                            className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-gray-300 focus:ring-blue-500 bg-white"
-                            rows={1}
-                            disabled={isLoading}
-                          />
-                          <button
-                            type="submit"
-                            disabled={!inputValue.trim() || isLoading}
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-gray-500"
-                          >
-                            <Send size={16} />
-                          </button>
-                        </div>
-                      </form>
+                      <EnhancedInput
+                        value={inputValue}
+                        onChange={setInputValue}
+                        onSubmit={handleSubmit}
+                        placeholder="Message Branch AI..."
+                        disabled={isLoading}
+                        className="w-full"
+                      />
                       
                       <div className="mt-2 text-xs text-center text-gray-500 w-full">
                         <span>Branch AI can make mistakes. Check important info.</span>
@@ -758,14 +778,14 @@ const ChatInterface = ({
                                   </span>
                                 </div>
                                 <div className="text-sm text-green-700 bg-white border border-green-200 rounded-lg p-3">
-                                  <BranchableMessage
+                                  <MessageRenderer
                                     content={branch.branchText}
                                     messageId={`branch-origin-${branch.id}`}
+                                    sender="user"
                                     onBranch={() => {}} // No branching from branch origin
                                     onSelectBranch={() => {}} // No branch selection from branch origin
+                                    onCopy={() => {}} // No copy from branch origin
                                     branches={[]}
-                                    className="branch-origin-text"
-                                    disableBranching={true}
                                   />
                                 </div>
                                 <p className="text-xs text-green-600 mt-2">
@@ -786,11 +806,16 @@ const ChatInterface = ({
                                 {message.sender === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
                               </div>
                               <div className="flex-1 relative">
-                                <BranchableMessage
+                                {/* BRANCH MESSAGE RENDERER */}
+                                <MessageRenderer
                                   content={message.content}
+                                  attachments={message.attachments}
                                   messageId={message.id}
+                                  sender={message.sender}
                                   onBranch={handleLineBranch}
                                   onSelectBranch={handleSelectBranch}
+                                  onCopy={handleCopy}
+                                  onAnalyzeFile={onAnalyzeFile}
                                   branches={branches.map(b => ({ 
                                     parentMessageId: b.parentMessageId, 
                                     branchText: b.branchText,
@@ -834,27 +859,14 @@ const ChatInterface = ({
                     {/* Input Area - Fixed at bottom, show only in active branch column */}
                     {isCurrentBranch && (
                       <div className="border-t p-4 bg-white border-gray-200 flex-shrink-0">
-                        <form onSubmit={handleSubmit} className="flex gap-2 w-full">
-                          <div className="flex-1 relative w-full">
-                            <textarea
-                              ref={textareaRef}
-                              value={inputValue}
-                              onChange={(e) => setInputValue(e.target.value)}
-                              onKeyDown={handleKeyDown}
-                              placeholder="Continue this branch conversation..."
-                              className="w-full resize-none rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent max-h-32 min-h-[48px] shadow-sm border border-green-300 focus:ring-green-500 bg-white"
-                              rows={1}
-                              disabled={isLoading}
-                            />
-                            <button
-                              type="submit"
-                              disabled={!inputValue.trim() || isLoading}
-                              className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 hover:text-gray-700 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors text-green-600 hover:text-green-800"
-                            >
-                              <Send size={16} />
-                            </button>
-                          </div>
-                        </form>
+                        <EnhancedInput
+                          value={inputValue}
+                          onChange={setInputValue}
+                          onSubmit={handleSubmit}
+                          placeholder="Continue this branch conversation..."
+                          disabled={isLoading}
+                          className="w-full border-green-300 focus:ring-green-500"
+                        />
                         
                         <div className="mt-2 text-xs text-center text-green-600 w-full">
                           <div className="flex items-center justify-center gap-1">

@@ -4,7 +4,8 @@ const STORAGE_KEY = 'comfy-chat-settings';
 
 const DEFAULT_SETTINGS: SettingsConfig = {
   openaiApiKey: '',
-  aiEngine: 'mock'
+  aiEngine: 'mock',
+  model: 'mock'
 };
 
 export class SettingsService {
