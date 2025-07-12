@@ -253,28 +253,38 @@ function App() {
 
   // Function to generate a meaningful branch title using AI
   const generateBranchTitle = useCallback(async (branchText: string, parentMessageId: string): Promise<string> => {
+    console.log('🌳 Generating branch title for:', branchText.substring(0, 50) + '...');
+    
     try {
       // Find the parent message
       const parentMessage = messages.find(m => m.id === parentMessageId);
-      if (!parentMessage) return `Branch: ${branchText.substring(0, 30)}...`;
+      if (!parentMessage) {
+        console.log('⚠️ Parent message not found, using fallback title');
+        return `Branch: ${branchText.substring(0, 30)}...`;
+      }
 
       // Get the conversation history up to this point
       const history = getRelevantHistory(parentMessage.branchId || null);
       
       // Check if AI service is available
       if (!aiService) {
+        console.log('⚠️ AI service not available, using fallback title');
         return `Branch from "${branchText.substring(0, 20)}..."`;
       }
       
       // Use AI service to generate title
+      console.log('🤖 Requesting AI-generated title...');
       const title = await aiService.generateBranchTitle(branchText, history);
+      console.log('✅ AI-generated title:', title);
       
       return title;
     } catch (error) {
-      console.error('Error generating branch title:', error);
+      console.error('❌ Error generating branch title:', error);
       // Fallback to simple title
       const cleanText = branchText.trim().substring(0, 40);
-      return `Branch: ${cleanText}${branchText.length > 40 ? '...' : ''}`;
+      const fallbackTitle = `Branch: ${cleanText}${branchText.length > 40 ? '...' : ''}`;
+      console.log('⚠️ Using fallback title:', fallbackTitle);
+      return fallbackTitle;
     }
   }, [messages, aiService, getRelevantHistory]);
 

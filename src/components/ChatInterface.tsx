@@ -231,7 +231,7 @@ const ChatInterface = ({  onSendMessage,
         const branchNumber = branches.findIndex(b => b.id === branch.id) + 1;
         items.push({
           id: branch.id,
-          label: `Branch ${branchNumber}`,
+          label: branch.name || `Branch ${branchNumber}`,
           type: 'branch',
           branchText: branch.branchText,
           depth: branch.depth
@@ -386,7 +386,10 @@ const ChatInterface = ({  onSendMessage,
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-semibold text-gray-900">
-                    Branch
+                    {currentBranchId ? (() => {
+                      const branch = branches.find(b => b.id === currentBranchId);
+                      return branch?.name || 'Branch';
+                    })() : 'Branch'}
                   </h1>
                   {/* New Conversation Button - Right after Branch title */}
                   <button
@@ -739,7 +742,7 @@ const ChatInterface = ({  onSendMessage,
                         </div>
                         <div className="flex-1">
                           <h3 className="text-sm font-semibold text-gray-900">
-                            Branch {branchNumber} {index < branchPath.length - 1 ? '(Parent)' : '(Active)'}
+                            {branch.name || `Branch ${branchNumber}`} {index < branchPath.length - 1 ? '(Parent)' : '(Active)'}
                           </h3>
                           <div className="text-xs text-green-700 line-clamp-1">
                             <MarkdownMessage 
