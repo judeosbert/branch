@@ -7,7 +7,7 @@ interface BranchableMessageProps {
   messageId: string;
   onBranch: (messageId: string, branchText: string) => void;
   onSelectBranch?: (branchId: string) => void;
-  branches?: Array<{ parentMessageId: string; branchText: string; id: string }>;
+  branches?: Array<{ parentMessageId: string; branchText: string; id: string; name?: string }>;
   className?: string;
   disableBranching?: boolean;
 }
@@ -162,7 +162,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
                               setShowBranchPopup(null);
                             }}
                           >
-                            Branch {branchIdx + 1}
+                            {branch.name || `Branch ${branchIdx + 1}`}
                           </div>
                         ))}
                       </div>

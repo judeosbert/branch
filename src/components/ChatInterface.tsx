@@ -506,7 +506,8 @@ const ChatInterface = ({  onSendMessage,
                                 branches={branches.map(b => ({ 
                                   parentMessageId: b.parentMessageId, 
                                   branchText: b.branchText,
-                                  id: b.id
+                                  id: b.id,
+                                  name: b.name
                                 }))}
                               />
                               <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -619,7 +620,8 @@ const ChatInterface = ({  onSendMessage,
                                 branches={branches.map(b => ({ 
                                   parentMessageId: b.parentMessageId, 
                                   branchText: b.branchText,
-                                  id: b.id
+                                  id: b.id,
+                                  name: b.name
                                 }))}
                               />
                               <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -822,7 +824,8 @@ const ChatInterface = ({  onSendMessage,
                                   branches={branches.map(b => ({ 
                                     parentMessageId: b.parentMessageId, 
                                     branchText: b.branchText,
-                                    id: b.id
+                                    id: b.id,
+                                    name: b.name
                                   }))}
                                 />
                                 {/* nested branches indicator */}
