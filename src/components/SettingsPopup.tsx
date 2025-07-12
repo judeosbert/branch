@@ -138,19 +138,13 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
     }
   };
 
-  const maskApiKey = (key: string) => {
-    if (!key) return '';
-    if (key.length <= 8) return '*'.repeat(key.length);
-    return key.substring(0, 4) + '*'.repeat(key.length - 8) + key.substring(key.length - 4);
-  };
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in py-8">
-      <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 overflow-hidden animate-scale-in">
+      <div ref={modalRef} className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden animate-scale-in">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
               <Brain size={20} />
@@ -168,8 +162,9 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
           </button>
         </div>
         
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-6">
           {/* API Key Section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -386,22 +381,11 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
               ))}
             </div>
           </div>
-
-          {/* Current Status */}
-          {currentSettings.openaiApiKey && (
-            <div className="bg-gray-50 rounded-lg p-3">
-              <div className="text-sm text-gray-600">
-                <p className="font-medium">Current API Key:</p>
-                <p className="font-mono text-xs mt-1">
-                  {maskApiKey(currentSettings.openaiApiKey)}
-                </p>
-              </div>
-            </div>
-          )}
+        </div>
         </div>
         
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t">
+        <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-t flex-shrink-0">
           <div className="text-sm text-gray-600">
             <div className="flex items-center gap-4">
               <span className="font-mono text-xs">v{versionService.getCurrentVersion()}</span>

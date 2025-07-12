@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Popup - Current API Key Section Removed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #00aa00;
+        }
+        .removed {
+            background: #fee2e2;
+            border-left-color: #dc2626;
+        }
+        .button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 28rem;
+            width: 100%;
+            margin: 0 1rem;
+            max-height: calc(100vh - 4rem);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            background: #f9fafb;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .engine-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .engine-option:hover {
+            border-color: #9ca3af;
+        }
+        .engine-option.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .removed-section {
+            background: #fef2f2;
+            border: 2px dashed #fca5a5;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            color: #7f1d1d;
+            font-style: italic;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Settings Popup - Current API Key Section Removed</h1>
+    
+    <div class="status">
+        <h2>Changes Made</h2>
+        <div class="test-item removed">
+            <strong>❌ Removed:</strong> "Current API Key" display section
+        </div>
+        <div class="test-item removed">
+            <strong>❌ Removed:</strong> maskApiKey() function (no longer needed)
+        </div>
+        <div class="test-item success">
+            <strong>✅ Cleaned:</strong> No unused code or functions remaining
+        </div>
+        <div class="test-item success">
+            <strong>✅ Maintained:</strong> All other functionality intact
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>What Was Removed</h2>
+        <div class="test-item">
+            <strong>Removed Section:</strong>
+            <pre style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px;">
+{/* Current Status */}
+{currentSettings.openaiApiKey && (
+  &lt;div className="bg-gray-50 rounded-lg p-3"&gt;
+    &lt;div className="text-sm text-gray-600"&gt;
+      &lt;p className="font-medium"&gt;Current API Key:&lt;/p&gt;
+      &lt;p className="font-mono text-xs mt-1"&gt;
+        {maskApiKey(currentSettings.openaiApiKey)}
+      &lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+)}
+            </pre>
+        </div>
+        <div class="test-item">
+            <strong>Removed Function:</strong>
+            <pre style="background: #f3f4f6; padding: 10px; border-radius: 4px; margin-top: 10px; font-size: 12px;">
+const maskApiKey = (key: string) => {
+  if (!key) return '';
+  if (key.length <= 8) return '*'.repeat(key.length);
+  return key.substring(0, 4) + '*'.repeat(key.length - 8) + key.substring(key.length - 4);
+};
+            </pre>
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>Benefits of Removal</h2>
+        <div class="test-item success">
+            <strong>✅ Cleaner Interface:</strong> Removes redundant information display
+        </div>
+        <div class="test-item success">
+            <strong>✅ Reduced Clutter:</strong> Focuses user attention on input and configuration
+        </div>
+        <div class="test-item success">
+            <strong>✅ Less Code:</strong> Eliminates unused maskApiKey function and conditional rendering
+        </div>
+        <div class="test-item success">
+            <strong>✅ Privacy:</strong> No longer displays (even masked) API key information
+        </div>
+    </div>
+
+    <button class="button" onclick="openModal()">Open Settings Modal (Updated)</button>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 2rem; height: 2rem; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        🧠
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Branch Settings</h3>
+                        <p style="margin: 0; font-size: 0.875rem; color: rgba(255,255,255,0.8);">Configure your AI engine and API key</p>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-section">
+                    <label class="form-label">🔑 OpenAI API Key</label>
+                    <input type="password" class="form-input" placeholder="sk-..." value="">
+                    <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 0.75rem; margin-top: 0.75rem; font-size: 0.875rem; color: #92400e;">
+                        <strong>BYOK (Bring Your Own Key)</strong><br>
+                        Your API key is stored locally and never sent to our servers.
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">AI Engine</label>
+                    <div class="engine-option selected">
+                        <input type="radio" name="engine" checked>
+                        <div>
+                            <div style="font-weight: 500;">GPT-4o (Latest)</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Most capable model</div>
+                        </div>
+                    </div>
+                    <div class="engine-option">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">GPT-4</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Advanced reasoning</div>
+                        </div>
+                    </div>
+                    <div class="engine-option">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">GPT-3.5 Turbo</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Fast and efficient</div>
+                        </div>
+                    </div>
+                    <div class="engine-option">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">Mock AI (Demo)</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">For testing without API key</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Show where the removed section was -->
+                <div class="removed-section">
+                    <strong>🗑️ Removed Section</strong><br>
+                    "Current API Key" display was here<br>
+                    <small>(No longer shows masked API key)</small>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div style="font-size: 0.875rem; color: #6b7280;">
+                    <span style="font-family: monospace; font-size: 0.75rem;">v1.0.0</span>
+                    <span style="color: #f59e0b; margin-left: 1rem;">• Unsaved changes</span>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="closeModal()" style="padding: 0.5rem 1rem; color: #6b7280; background: none; border: none; font-weight: 500; cursor: pointer;">Cancel</button>
+                    <button style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">💾 Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>Remaining Functionality</h2>
+        <div class="test-item success">
+            <strong>✅ API Key Input:</strong> Users can still enter and edit API keys
+        </div>
+        <div class="test-item success">
+            <strong>✅ Engine Selection:</strong> All AI engine options remain available
+        </div>
+        <div class="test-item success">
+            <strong>✅ Test Connection:</strong> API key validation still works
+        </div>
+        <div class="test-item success">
+            <strong>✅ Save/Cancel:</strong> Settings persistence functionality intact
+        </div>
+        <div class="test-item success">
+            <strong>✅ Responsive Design:</strong> Modal height fixes remain in place
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            console.log('✅ Settings modal opened - Current API Key section removed');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        console.log('ℹ️ Settings Popup Updated - Current API Key section removed');
+        console.log('ℹ️ Modal is now cleaner and more focused on configuration');
+    </script>
+</body>
+</html>

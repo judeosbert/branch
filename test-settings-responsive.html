@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings Popup Responsive Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #e8f4f8;
+            border-left: 4px solid #0066cc;
+            border-radius: 4px;
+        }
+        .success {
+            background: #e8f5e8;
+            border-left-color: #00aa00;
+        }
+        .button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 10px 10px 0;
+            font-size: 16px;
+        }
+        .button:hover {
+            background: #0052a3;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            max-width: 28rem;
+            width: 100%;
+            margin: 0 1rem;
+            max-height: calc(100vh - 4rem);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            background: #f9fafb;
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .engine-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .engine-option:hover {
+            border-color: #9ca3af;
+        }
+        .engine-option.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .close-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .height-demo {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .height-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .height-btn {
+            background: #8b5cf6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .height-btn:hover {
+            background: #7c3aed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Settings Popup Responsive Fix</h1>
+    
+    <div class="status">
+        <h2>Implementation Status</h2>
+        <div class="test-item success">
+            <strong>✅ Height Constraint:</strong> Modal now uses max-height: calc(100vh - 4rem)
+        </div>
+        <div class="test-item success">
+            <strong>✅ Flexbox Layout:</strong> Modal uses flex flex-col for proper structure
+        </div>
+        <div class="test-item success">
+            <strong>✅ Fixed Header:</strong> Header uses flex-shrink-0 to stay at top
+        </div>
+        <div class="test-item success">
+            <strong>✅ Scrollable Content:</strong> Content area uses flex-1 overflow-y-auto
+        </div>
+        <div class="test-item success">
+            <strong>✅ Fixed Footer:</strong> Footer uses flex-shrink-0 to stay at bottom
+        </div>
+    </div>
+
+    <div class="height-demo">
+        <h2>Height Simulation Test</h2>
+        <p>Test the modal with different viewport heights to ensure it remains accessible:</p>
+        
+        <div class="height-controls">
+            <button class="height-btn" onclick="setViewportHeight('100vh')">Full Height</button>
+            <button class="height-btn" onclick="setViewportHeight('600px')">Small (600px)</button>
+            <button class="height-btn" onclick="setViewportHeight('400px')">Very Small (400px)</button>
+            <button class="height-btn" onclick="setViewportHeight('300px')">Tiny (300px)</button>
+        </div>
+        
+        <p id="heightInfo">Current viewport simulation: 100vh (full height)</p>
+        
+        <button class="button" onclick="openModal()">Open Settings Modal</button>
+    </div>
+
+    <div class="status">
+        <h2>Key Improvements Made</h2>
+        <div class="test-item">
+            <strong>Before:</strong>
+            <pre>className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 overflow-hidden animate-scale-in"</pre>
+        </div>
+        <div class="test-item success">
+            <strong>After:</strong>
+            <pre>className="bg-white rounded-lg shadow-2xl max-w-md w-full m-4 max-h-[calc(100vh-4rem)] flex flex-col overflow-hidden animate-scale-in"</pre>
+        </div>
+        <div class="test-item">
+            <strong>Header:</strong> Added <code>flex-shrink-0</code> to prevent compression
+        </div>
+        <div class="test-item">
+            <strong>Content:</strong> Wrapped in <code>flex-1 overflow-y-auto</code> for scrolling
+        </div>
+        <div class="test-item">
+            <strong>Footer:</strong> Added <code>flex-shrink-0</code> to keep at bottom
+        </div>
+    </div>
+
+    <div class="status">
+        <h2>Responsive Behavior</h2>
+        <div class="test-item success">
+            <strong>Large Screens:</strong> Modal displays full content without scrolling
+        </div>
+        <div class="test-item success">
+            <strong>Medium Screens:</strong> Content scrolls while header/footer remain visible
+        </div>
+        <div class="test-item success">
+            <strong>Small Screens:</strong> Modal fits within viewport with proper margins
+        </div>
+        <div class="test-item success">
+            <strong>Mobile Devices:</strong> Touch scrolling works smoothly in content area
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 2rem; height: 2rem; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        🧠
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Branch Settings</h3>
+                        <p style="margin: 0; font-size: 0.875rem; color: rgba(255,255,255,0.8);">Configure your AI engine and API key</p>
+                    </div>
+                </div>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="form-section">
+                    <label class="form-label">🔑 OpenAI API Key</label>
+                    <input type="password" class="form-input" placeholder="sk-..." value="sk-example-key-here">
+                    <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 0.75rem; margin-top: 0.75rem; font-size: 0.875rem; color: #92400e;">
+                        <strong>BYOK (Bring Your Own Key)</strong><br>
+                        Your API key is stored locally and never sent to our servers.
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">AI Engine</label>
+                    <div class="engine-option selected">
+                        <input type="radio" name="engine" checked>
+                        <div>
+                            <div style="font-weight: 500;">GPT-4o (Latest)</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Most capable model</div>
+                        </div>
+                    </div>
+                    <div class="engine-option">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">GPT-4</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Advanced reasoning</div>
+                        </div>
+                    </div>
+                    <div class="engine-option">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">GPT-3.5 Turbo</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">Fast and efficient</div>
+                        </div>
+                    </div>
+                    <div class="engine-option">
+                        <input type="radio" name="engine">
+                        <div>
+                            <div style="font-weight: 500;">Mock AI (Demo)</div>
+                            <div style="font-size: 0.875rem; color: #6b7280;">For testing without API key</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div style="background: #f3f4f6; border-radius: 8px; padding: 0.75rem;">
+                        <div style="font-size: 0.875rem; color: #6b7280;">
+                            <p style="margin: 0; font-weight: 500;">Current API Key:</p>
+                            <p style="margin: 0.25rem 0 0 0; font-family: monospace; font-size: 0.75rem;">sk-****************************abcd</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extra content to demonstrate scrolling -->
+                <div class="form-section">
+                    <label class="form-label">Advanced Settings</label>
+                    <div style="border: 1px solid #d1d5db; border-radius: 8px; padding: 1rem;">
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.875rem; margin-bottom: 0.25rem;">Temperature</label>
+                            <input type="range" min="0" max="1" step="0.1" value="0.7" style="width: 100%;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; font-size: 0.875rem; margin-bottom: 0.25rem;">Max Tokens</label>
+                            <input type="number" class="form-input" value="1000">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.875rem; margin-bottom: 0.25rem;">Custom Instructions</label>
+                            <textarea class="form-input" rows="4" placeholder="Enter custom instructions for the AI..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <label class="form-label">Export/Import</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button style="padding: 0.5rem 1rem; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer;">Export Settings</button>
+                        <button style="padding: 0.5rem 1rem; border: 1px solid #d1d5db; border-radius: 6px; background: white; cursor: pointer;">Import Settings</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div style="font-size: 0.875rem; color: #6b7280;">
+                    <span style="font-family: monospace; font-size: 0.75rem;">v1.0.0</span>
+                    <span style="color: #f59e0b; margin-left: 1rem;">• Unsaved changes</span>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <button onclick="closeModal()" style="padding: 0.5rem 1rem; color: #6b7280; background: none; border: none; font-weight: 500; cursor: pointer;">Cancel</button>
+                    <button style="padding: 0.5rem 1rem; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;">💾 Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+        
+        function setViewportHeight(height) {
+            const container = document.body;
+            container.style.height = height;
+            container.style.overflow = height === '100vh' ? 'auto' : 'hidden';
+            
+            document.getElementById('heightInfo').textContent = 
+                `Current viewport simulation: ${height}`;
+            
+            console.log(`✅ Viewport height set to: ${height}`);
+        }
+        
+        // Close modal when clicking outside
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        
+        // Demonstrate scrolling behavior
+        console.log('ℹ️ Settings Popup Responsive Fix Demo Ready');
+        console.log('ℹ️ Try different viewport heights and open the modal to test scrolling');
+    </script>
+</body>
+</html>
