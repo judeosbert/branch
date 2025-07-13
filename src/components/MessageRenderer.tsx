@@ -17,6 +17,8 @@ interface MessageRendererProps {
     id: string;
   }>;
   onAnalyzeFile?: (file: FileAttachment) => void;
+  isCreatingBranch?: boolean;
+  creatingBranchInfo?: { messageId: string; branchText: string } | null;
 }
 
 const MessageRenderer: React.FC<MessageRendererProps> = ({
@@ -28,7 +30,9 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({
   onSelectBranch,
   onCopy,
   branches,
-  onAnalyzeFile
+  onAnalyzeFile,
+  isCreatingBranch = false,
+  creatingBranchInfo = null
 }) => {
   // If message has attachments, render with RichMessage + BranchableMessage
   if (attachments.length > 0) {
@@ -48,6 +52,8 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({
           onBranch={onBranch}
           onSelectBranch={onSelectBranch}
           branches={branches}
+          isCreatingBranch={isCreatingBranch}
+          creatingBranchInfo={creatingBranchInfo}
         />
       </div>
     );
@@ -61,6 +67,8 @@ const MessageRenderer: React.FC<MessageRendererProps> = ({
       onBranch={onBranch}
       onSelectBranch={onSelectBranch}
       branches={branches}
+      isCreatingBranch={isCreatingBranch}
+      creatingBranchInfo={creatingBranchInfo}
     />
   );
 };

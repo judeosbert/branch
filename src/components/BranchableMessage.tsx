@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import MarkdownMessage from './MarkdownMessage';
 import { GitBranch } from 'lucide-react';
 
@@ -10,6 +11,8 @@ interface BranchableMessageProps {
   branches?: Array<{ parentMessageId: string; branchText: string; id: string; name?: string }>;
   className?: string;
   disableBranching?: boolean;
+  isCreatingBranch?: boolean;
+  creatingBranchInfo?: { messageId: string; branchText: string } | null;
 }
 
 // Utility to split content into branchable units: preserve markdown structure
@@ -53,11 +56,13 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
   onSelectBranch,
   branches = [], 
   className,
-  disableBranching = false 
+  disableBranching = false,
+  isCreatingBranch = false,
+  creatingBranchInfo = null
 }) => {
   const units = parseUnits(content);
   const [hoveredUnit, setHoveredUnit] = useState<number | null>(null);
-  const [showBranchPopup, setShowBranchPopup] = useState<{ unitIndex: number; unitText: string } | null>(null);
+  const [showBranchPopup, setShowBranchPopup] = useState<{ unitIndex: number; unitText: string; rect: DOMRect } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
   // Close popup when clicking outside
@@ -68,11 +73,92 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
       }
     };
 
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowBranchPopup(null);
+      }
+    };
+
     if (showBranchPopup) {
       document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscape);
+      };
     }
   }, [showBranchPopup]);
+
+  // Branch Dropdown Portal Component
+  const BranchDropdown: React.FC<{
+    isOpen: boolean;
+    unitText: string;
+    position: DOMRect;
+    onClose: () => void;
+  }> = ({ isOpen, unitText, position, onClose }) => {
+    if (!isOpen) return null;
+
+    // Calculate position, ensuring dropdown stays within viewport
+    const dropdownWidth = 192; // min-width in pixels
+    const dropdownHeight = 200; // estimated max height
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    let left = position.left + position.width + 8; // Position to the right of the trigger
+    let top = position.top;
+    
+    // If dropdown would go off right edge, position to the left
+    if (left + dropdownWidth > viewportWidth) {
+      left = position.left - dropdownWidth - 8;
+    }
+    
+    // If dropdown would go off bottom edge, position above
+    if (top + dropdownHeight > viewportHeight) {
+      top = position.bottom - dropdownHeight;
+    }
+    
+    // Ensure dropdown doesn't go off left or top edges
+    left = Math.max(8, left);
+    top = Math.max(8, top);
+
+    const dropdownStyle: React.CSSProperties = {
+      position: 'fixed',
+      left: left,
+      top: top,
+      zIndex: 9999, // Very high z-index to ensure it's on top
+      minWidth: '192px',
+      maxHeight: '200px',
+      overflowY: 'auto',
+    };
+
+    return createPortal(
+      <div 
+        ref={popupRef}
+        className="bg-white border border-gray-300 rounded-lg shadow-lg py-2"
+        style={dropdownStyle}
+      >
+        <div className="px-3 py-1 text-xs font-medium text-gray-500 border-b border-gray-200">
+          Select Branch
+        </div>
+        {getBranchesForText(unitText).map((branch, branchIdx) => (
+          <div
+            key={branchIdx}
+            className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSelectBranch) {
+                onSelectBranch(branch.id);
+              }
+              onClose();
+            }}
+          >
+            {branch.name || `Branch ${branchIdx + 1}`}
+          </div>
+        ))}
+      </div>,
+      document.body
+    );
+  };
 
   // Helper function to count branches for a specific text
   const getBranchCount = (text: string) => {
@@ -116,12 +202,26 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
                   className={`flex-1 flex items-center justify-center transition-colors relative ${
                     isHovered ? 'bg-green-100' : ''
                   }`}
-                  onClick={() => onBranch(messageId, unit.text)}
+                  onClick={() => {
+                    if (!isCreatingBranch || 
+                        !creatingBranchInfo || 
+                        creatingBranchInfo.messageId !== messageId || 
+                        creatingBranchInfo.branchText !== unit.text) {
+                      onBranch(messageId, unit.text);
+                    }
+                  }}
                 >
                   <div className={`p-1 transition-colors ${
                     isHovered ? 'text-green-600' : 'text-gray-300'
                   }`}>
-                    <GitBranch size={14} />
+                    {isCreatingBranch && 
+                     creatingBranchInfo && 
+                     creatingBranchInfo.messageId === messageId && 
+                     creatingBranchInfo.branchText === unit.text ? (
+                      <div className="w-3.5 h-3.5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <GitBranch size={14} />
+                    )}
                   </div>
                 </div>
                 
@@ -133,7 +233,8 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setShowBranchPopup({ unitIndex: idx, unitText: unit.text });
+                      const rect = (e.target as HTMLElement).getBoundingClientRect();
+                      setShowBranchPopup({ unitIndex: idx, unitText: unit.text, rect });
                     }}
                   >
                     <div className={`text-xs font-medium transition-colors ${
@@ -141,32 +242,6 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
                     }`}>
                       {branchCount}
                     </div>
-                    {/* Branch Selection Popup */}
-                    {showBranchPopup && showBranchPopup.unitIndex === idx && (
-                      <div 
-                        ref={popupRef}
-                        className="absolute left-6 top-0 bg-white border border-gray-300 rounded-lg shadow-lg py-2 min-w-48 z-20"
-                      >
-                        <div className="px-3 py-1 text-xs font-medium text-gray-500 border-b border-gray-200">
-                          Select Branch
-                        </div>
-                        {getBranchesForText(unit.text).map((branch, branchIdx) => (
-                          <div
-                            key={branchIdx}
-                            className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onSelectBranch) {
-                                onSelectBranch(branch.id);
-                              }
-                              setShowBranchPopup(null);
-                            }}
-                          >
-                            {branch.name || `Branch ${branchIdx + 1}`}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -186,6 +261,16 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
           </div>
         );
       })}
+      
+      {/* Portal-based Branch Dropdown */}
+      {showBranchPopup && (
+        <BranchDropdown
+          isOpen={true}
+          unitText={showBranchPopup.unitText}
+          position={showBranchPopup.rect}
+          onClose={() => setShowBranchPopup(null)}
+        />
+      )}
     </div>
   );
 };

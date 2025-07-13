@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@types/dompurify": "^3.0.5",
     "@types/mime-types": "^3.0.1",
     "@types/prismjs": "^1.26.5",

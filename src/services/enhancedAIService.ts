@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { SettingsConfig } from '../components/SettingsPopup';
 import type { FileAttachment } from '../components/FileUpload';
 
@@ -362,99 +363,75 @@ export class EnhancedAIService {
     content: string, 
     attachments: FileAttachment[] = [],
     conversationHistory: AIMessage[] = [],
-    branchContext?: BranchContext
+    _branchContext?: BranchContext
   ): AsyncGenerator<string, AIMessage, unknown> {
-    const messages = conversationHistory.map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
-
-    // Add the current message
-    const currentMessageParts: any[] = [{ text: content }];
-    
-    // Handle attachments for Gemini
-    for (const attachment of attachments) {
-      if (attachment.type.startsWith('image/')) {
-        // For images, add to message parts
-        currentMessageParts.push({
-          inlineData: {
-            mimeType: attachment.type,
-            data: attachment.data?.split(',')[1] || attachment.data // Remove data URL prefix if present
-          }
-        });
-      } else {
-        // For non-image files, include context about the file
-        currentMessageParts.push({
-          text: `[File attached: ${attachment.name} (${attachment.type}, ${this.formatFileSize(attachment.size)}). Please analyze this file if relevant to the conversation.]`
-        });
-      }
-    }
-
-    messages.push({
-      role: 'user',
-      parts: currentMessageParts
-    });
-
-    const requestBody = {
-      contents: messages,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4000
-      }
-    };
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:streamGenerateContent?key=${this.settings.geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error('No response body received from Gemini API');
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      // Initialize the Gemini API client
+      const genAI = new GoogleGenerativeAI(this.settings.geminiApiKey);
+      
+      // Map model ID to actual Gemini model name
+      const geminiModel = this.getGeminiModelName(this.settings.model || this.settings.aiEngine);
+      console.log('🔍 Gemini request - Model:', geminiModel, 'Settings model:', this.settings.model);
+      
+      // Get the model instance
+      const model = genAI.getGenerativeModel({ model: geminiModel });
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+      // Build chat history for Gemini
+      const chatHistory: any[] = [];
+      for (const msg of conversationHistory) {
+        chatHistory.push({
+          role: msg.sender === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        });
+      }
 
-        for (const line of lines) {
-          if (line.trim()) {
-            try {
-              const data = JSON.parse(line);
-              if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                const parts = data.candidates[0].content.parts;
-                if (parts && parts[0] && parts[0].text) {
-                  yield parts[0].text;
-                }
-              }
-            } catch (e) {
-              // Skip invalid JSON
+      // Start chat with history
+      const chat = model.startChat({
+        history: chatHistory,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4000,
+        }
+      });
+
+      // Prepare the current message parts
+      const currentMessageParts: any[] = [{ text: content }];
+      
+      // Handle attachments for Gemini
+      for (const attachment of attachments) {
+        if (attachment.type.startsWith('image/')) {
+          // For images, add to message parts
+          currentMessageParts.push({
+            inlineData: {
+              mimeType: attachment.type,
+              data: attachment.data?.split(',')[1] || attachment.data // Remove data URL prefix if present
             }
-          }
+          });
+        } else {
+          // For non-image files, include context about the file
+          currentMessageParts.push({
+            text: `[File attached: ${attachment.name} (${attachment.type}, ${this.formatFileSize(attachment.size)}). Please analyze this file if relevant to the conversation.]`
+          });
         }
       }
-    } finally {
-      reader.releaseLock();
+
+      // Send message and stream response
+      const result = await chat.sendMessageStream(currentMessageParts);
+      
+      // Stream the response
+      for await (const chunk of result.stream) {
+        const chunkText = chunk.text();
+        if (chunkText) {
+          yield chunkText;
+        }
+      }
+
+      // Return a placeholder message - the actual message will be constructed by the caller
+      return this.createMessage('', 'assistant');
+    } catch (error) {
+      console.error('🔍 Gemini streaming error:', error);
+      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-    
-    // Return a placeholder message - the actual message will be constructed by the caller
-    return this.createMessage('', 'assistant');
   }
 
   private async analyzeFileWithOpenAI(file: FileAttachment): Promise<string> {
@@ -552,11 +529,21 @@ Provide insights about:
   }
 
   private async analyzeFileWithGemini(file: FileAttachment): Promise<string> {
-    let analysisPrompt = '';
-    const parts: any[] = [];
+    try {
+      // Initialize the Gemini API client
+      const genAI = new GoogleGenerativeAI(this.settings.geminiApiKey);
+      
+      // Map model ID to actual Gemini model name
+      const geminiModel = this.getGeminiModelName(this.settings.model || this.settings.aiEngine);
+      
+      // Get the model instance
+      const model = genAI.getGenerativeModel({ model: geminiModel });
 
-    if (file.type.startsWith('image/')) {
-      analysisPrompt = `Please analyze this image in detail. Describe what you see, including:
+      let analysisPrompt = '';
+      const parts: any[] = [];
+
+      if (file.type.startsWith('image/')) {
+        analysisPrompt = `Please analyze this image in detail. Describe what you see, including:
 - Main subjects and objects
 - Colors, composition, and visual elements
 - Any text or writing visible
@@ -564,18 +551,18 @@ Provide insights about:
 - Any notable details or interesting aspects
 
 Please provide a thorough analysis that would be helpful for someone who cannot see the image.`;
-      
-      parts.push({ text: analysisPrompt });
-      parts.push({
-        inlineData: {
-          mimeType: file.type,
-          data: file.data?.split(',')[1] || file.data // Remove data URL prefix if present
-        }
-      });
-    } else if (file.type.startsWith('audio/')) {
-      // For audio files, we'll need to handle them differently
-      // Gemini doesn't support audio analysis directly, so we'll provide a helpful message
-      return `⚠️ **Audio Analysis Not Supported**
+        
+        parts.push({ text: analysisPrompt });
+        parts.push({
+          inlineData: {
+            mimeType: file.type,
+            data: file.data?.split(',')[1] || file.data // Remove data URL prefix if present
+          }
+        });
+      } else if (file.type.startsWith('audio/')) {
+        // For audio files, we'll need to handle them differently
+        // Gemini doesn't support audio analysis directly, so we'll provide a helpful message
+        return `⚠️ **Audio Analysis Not Supported**
 
 **File**: ${file.name} (${file.type}, ${this.formatFileSize(file.size)})
 
@@ -588,9 +575,9 @@ Gemini does not currently support direct audio file analysis. For audio transcri
 **Supported File Types with Gemini:**
 - Images: PNG, JPEG, GIF, WebP
 - Text files: TXT, MD, JSON, etc.`;
-    } else {
-      // For other file types, we can't process them directly
-      analysisPrompt = `I can see you've attached a file named "${file.name}" (${file.type}, ${this.formatFileSize(file.size)}). 
+      } else {
+        // For other file types, we can't process them directly
+        analysisPrompt = `I can see you've attached a file named "${file.name}" (${file.type}, ${this.formatFileSize(file.size)}). 
 
 Unfortunately, I cannot directly analyze this file type with Gemini. I can help you with:
 - Image analysis (PNG, JPEG, GIF, WebP)
@@ -598,35 +585,20 @@ Unfortunately, I cannot directly analyze this file type with Gemini. I can help 
 - General questions about this file type
 
 If this is a text file, please copy and paste the content, and I'll be happy to analyze it for you.`;
-      
-      parts.push({ text: analysisPrompt });
-    }
-
-    const requestBody = {
-      contents: [{
-        parts: parts
-      }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 4000
+        
+        parts.push({ text: analysisPrompt });
       }
-    };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:generateContent?key=${this.settings.geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
+      // Generate content using the official library
+      const result = await model.generateContent(parts);
+      const response = await result.response;
+      const text = response.text();
+      
+      return text;
+    } catch (error) {
+      console.error('🔍 Gemini file analysis error:', error);
+      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
   }
 
   private async *useMockServiceStream(content: string, attachments: FileAttachment[]): AsyncGenerator<string, void, unknown> {
@@ -802,38 +774,25 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
     }
 
     try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:generateContent?key=${this.settings.geminiApiKey}`;
-      console.log('🔍 testGeminiConnection - Making request to:', endpoint);
+      // Initialize the Gemini API client
+      const genAI = new GoogleGenerativeAI(this.settings.geminiApiKey);
       
-      // Test with a simple request to Gemini API
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: "Hello"
-                }
-              ]
-            }
-          ]
-        })
-      });
+      const geminiModel = this.getGeminiModelName(this.settings.model);
+      console.log('🔍 testGeminiConnection - Using Gemini model:', geminiModel);
+      
+      // Get the model instance
+      const model = genAI.getGenerativeModel({ model: geminiModel });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        return { 
-          success: false, 
-          error: `Gemini API Error (${response.status}): ${errorData.error?.message || response.statusText}` 
-        };
-      }
-
+      // Test with a simple request
+      const result = await model.generateContent("Hello");
+      const response = await result.response;
+      const text = response.text();
+      
+      console.log('🔍 testGeminiConnection - Response received:', text ? 'Success' : 'Empty response');
+      
       return { success: true };
     } catch (error) {
+      console.error('🔍 testGeminiConnection - Error:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Network error connecting to Gemini' 
@@ -916,6 +875,22 @@ Generate only the title, no quotes or additional text:`;
       const words = cleanText.split(' ').slice(0, 6).join(' ');
       return `Branch: ${words}${branchText.length > 40 ? '...' : ''}`;
     }
+  }
+
+  private getGeminiModelName(modelId: string): string {
+    // Map our internal model IDs to actual Gemini API model names
+    const modelMapping: { [key: string]: string } = {
+      'gemini-2.5-pro': 'gemini-2.0-flash-exp',
+      'gemini-2.5-flash': 'gemini-2.0-flash-exp', 
+      'gemini-2.5-flash-lite-preview-06-17': 'gemini-2.0-flash-exp',
+      'gemini-2.0-flash': 'gemini-2.0-flash-exp',
+      'gemini-2.0-flash-lite': 'gemini-2.0-flash-exp',
+      'gemini-1.5-flash': 'gemini-1.5-flash',
+      'gemini-1.5-flash-8b': 'gemini-1.5-flash-8b',
+      'gemini-1.5-pro': 'gemini-1.5-pro'
+    };
+
+    return modelMapping[modelId] || 'gemini-1.5-flash'; // fallback to a known working model
   }
 }
 

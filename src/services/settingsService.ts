@@ -4,8 +4,10 @@ const STORAGE_KEY = 'comfy-chat-settings';
 
 const DEFAULT_SETTINGS: SettingsConfig = {
   openaiApiKey: '',
-  aiEngine: 'openai-gpt3.5',
-  model: 'gpt-3.5-turbo'
+  geminiApiKey: '',
+  provider: 'mock',
+  aiEngine: 'mock',
+  model: 'mock'
 };
 
 export class SettingsService {
@@ -48,7 +50,7 @@ export class SettingsService {
   }
 
   static getModelForEngine(engine: SettingsConfig['aiEngine']): string {
-    const modelMap = {
+    const modelMap: Record<string, string> = {
       'openai-gpt4o': 'gpt-4o',
       'openai-gpt4': 'gpt-4',
       'openai-gpt3.5': 'gpt-3.5-turbo',
@@ -70,7 +72,7 @@ export class SettingsService {
   }
 
   static getEngineDisplayName(engine: SettingsConfig['aiEngine']): string {
-    const engineNames = {
+    const engineNames: Record<string, string> = {
       'openai-gpt4o': 'GPT-4o',
       'openai-gpt4': 'GPT-4',
       'openai-gpt3.5': 'GPT-3.5 Turbo',

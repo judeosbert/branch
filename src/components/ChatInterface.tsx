@@ -8,6 +8,7 @@ import MessageRenderer from './MessageRenderer';
 import MarkdownMessage from './MarkdownMessage';
 import EnhancedInput from './EnhancedInput';
 import ResizableColumn from './ResizableColumn';
+
 import type { ConversationBranch } from '../types';
 import type { SettingsConfig } from './SettingsPopup';
 import type { FileAttachment } from './FileUpload';
@@ -51,13 +52,25 @@ const ChatInterface = ({  onSendMessage,
   onToggleHistorySidebar,
   onAnalyzeFile
 }: ChatInterfaceProps) => {
+  // Branch creation loading state
+  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [creatingBranchInfo, setCreatingBranchInfo] = useState<{ messageId: string; branchText: string } | null>(null);
+  
   // Create branch from line or block
   const handleLineBranch = useCallback(async (messageId: string, branchText: string) => {
+    setIsCreatingBranch(true);
+    setCreatingBranchInfo({ messageId, branchText });
     try {
       const branchId = await onCreateBranch(messageId, branchText);
+      
+      // Navigate to the branch after creation
       onNavigateToBranch(branchId);
+      
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsCreatingBranch(false);
+      setCreatingBranchInfo(null);
     }
   }, [onCreateBranch, onNavigateToBranch]);
 
@@ -585,6 +598,8 @@ const ChatInterface = ({  onSendMessage,
                                   id: b.id,
                                   name: b.name
                                 }))}
+                                isCreatingBranch={isCreatingBranch}
+                                creatingBranchInfo={creatingBranchInfo}
                               />
                               <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onClick={() => handleCopy(message.content)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Copy message">
@@ -699,6 +714,8 @@ const ChatInterface = ({  onSendMessage,
                                   id: b.id,
                                   name: b.name
                                 }))}
+                                isCreatingBranch={isCreatingBranch}
+                                creatingBranchInfo={creatingBranchInfo}
                               />
                               <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button onClick={() => handleCopy(message.content)} className="p-1.5 hover:bg-gray-100 rounded-md transition-colors" title="Copy message">
@@ -867,6 +884,8 @@ const ChatInterface = ({  onSendMessage,
                                     onSelectBranch={() => {}} // No branch selection from branch origin
                                     onCopy={() => {}} // No copy from branch origin
                                     branches={[]}
+                                    isCreatingBranch={isCreatingBranch}
+                                    creatingBranchInfo={creatingBranchInfo}
                                   />
                                 </div>
                                 <p className="text-xs text-green-600 mt-2">
@@ -903,6 +922,8 @@ const ChatInterface = ({  onSendMessage,
                                     id: b.id,
                                     name: b.name
                                   }))}
+                                  isCreatingBranch={isCreatingBranch}
+                                  creatingBranchInfo={creatingBranchInfo}
                                 />
                                 {/* nested branches indicator */}
                                 {(() => {
@@ -986,6 +1007,8 @@ const ChatInterface = ({  onSendMessage,
           totalMessages={messages.filter(m => !m.branchId).length}
         />
       )}
+
+
     </div>
   );
 };
