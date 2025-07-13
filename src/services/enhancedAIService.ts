@@ -45,43 +45,85 @@ export class EnhancedAIService {
       return this.createMessage('', 'assistant');
     }
 
-    if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
-      throw new Error('Valid OpenAI API key is required for this AI engine. Please check your settings and ensure your API key starts with "sk-" and is properly configured.');
-    }
+    // Route to provider-specific stream method based on selected provider
+    if (this.settings.provider === 'openai') {
+      if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
+        throw new Error('Valid OpenAI API key is required for this AI engine. Please check your settings and ensure your API key starts with "sk-" and is properly configured.');
+      }
 
-    // For vision-related requests, ensure we're using a vision-capable model
-    const hasImages = attachments.some(att => att.type.startsWith('image/'));
-    if (hasImages && !this.settings.model.includes('gpt-4')) {
-      throw new Error(`Image analysis requires GPT-4 or GPT-4o. Current model: ${this.settings.model}. Please change to GPT-4 or GPT-4o in settings.`);
-    }
+      // For vision-related requests, ensure we're using a vision-capable model
+      const hasImages = attachments.some(att => att.type.startsWith('image/'));
+      if (hasImages && !this.settings.model.includes('gpt-4')) {
+        throw new Error(`Image analysis requires GPT-4 or GPT-4o. Current model: ${this.settings.model}. Please change to GPT-4 or GPT-4o in settings.`);
+      }
 
-    try {
-      yield* this.useOpenAIServiceStream(content, attachments, conversationHistory, branchContext);
-      return this.createMessage('', 'assistant');
-    } catch (error) {
-      console.error('OpenAI API error:', error);
-      
-      // For voice and image processing, we want to show the actual error instead of fallback
-      const hasVoiceOrImage = attachments.some(att => 
-        att.type.startsWith('audio/') || att.type.startsWith('image/')
-      );
-      
-      if (hasVoiceOrImage) {
-        // Show error message instead of falling back to mock for voice/image
-        const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
-        yield `⚠️ **OpenAI API Error**: ${errorMessage}\n\n`;
-        yield `This error occurred while processing your ${attachments.some(att => att.type.startsWith('audio/')) ? 'voice recording' : 'image'}. `;
-        yield `Please check your OpenAI API key and try again.\n\n`;
-        yield `**Troubleshooting:**\n`;
-        yield `- Verify your OpenAI API key is valid and has sufficient credits\n`;
-        yield `- Check if you have access to the selected model (${this.settings.model})\n`;
-        yield `- Ensure your API key has permission for vision/audio processing\n`;
+      try {
+        yield* this.useOpenAIServiceStream(content, attachments, conversationHistory, branchContext);
+        return this.createMessage('', 'assistant');
+      } catch (error) {
+        console.error('OpenAI API error:', error);
+        
+        // For voice and image processing, we want to show the actual error instead of fallback
+        const hasVoiceOrImage = attachments.some(att => 
+          att.type.startsWith('audio/') || att.type.startsWith('image/')
+        );
+        
+        if (hasVoiceOrImage) {
+          // Show error message instead of falling back to mock for voice/image
+          const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
+          yield `⚠️ **OpenAI API Error**: ${errorMessage}\n\n`;
+          yield `This error occurred while processing your ${attachments.some(att => att.type.startsWith('audio/')) ? 'voice recording' : 'image'}. `;
+          yield `Please check your OpenAI API key and try again.\n\n`;
+          yield `**Troubleshooting:**\n`;
+          yield `- Verify your OpenAI API key is valid and has sufficient credits\n`;
+          yield `- Check if you have access to the selected model (${this.settings.model})\n`;
+          yield `- Ensure your API key has permission for vision/audio processing\n`;
+          return this.createMessage('', 'assistant');
+        }
+        
+        // For text-only messages, still fallback but warn the user
+        console.warn('Falling back to mock service due to OpenAI API error');
+        yield `⚠️ **Note**: Using mock AI service due to API error. Check console for details.\n\n`;
+        yield* this.useMockServiceStream(content, attachments);
         return this.createMessage('', 'assistant');
       }
-      
-      // For text-only messages, still fallback but warn the user
-      console.warn('Falling back to mock service due to OpenAI API error');
-      yield `⚠️ **Note**: Using mock AI service due to API error. Check console for details.\n\n`;
+    } else if (this.settings.provider === 'gemini') {
+      if (!this.settings.geminiApiKey || !this.isValidGeminiKey(this.settings.geminiApiKey)) {
+        throw new Error('Valid Gemini API key is required for this AI engine. Please check your settings and ensure your API key is properly configured.');
+      }
+
+      try {
+        yield* this.useGeminiServiceStream(content, attachments, conversationHistory, branchContext);
+        return this.createMessage('', 'assistant');
+      } catch (error) {
+        console.error('Gemini API error:', error);
+        
+        // For voice and image processing, we want to show the actual error instead of fallback
+        const hasVoiceOrImage = attachments.some(att => 
+          att.type.startsWith('audio/') || att.type.startsWith('image/')
+        );
+        
+        if (hasVoiceOrImage) {
+          // Show error message instead of falling back to mock for voice/image
+          const errorMessage = error instanceof Error ? error.message : 'Unknown Gemini API error';
+          yield `⚠️ **Gemini API Error**: ${errorMessage}\n\n`;
+          yield `This error occurred while processing your ${attachments.some(att => att.type.startsWith('audio/')) ? 'voice recording' : 'image'}. `;
+          yield `Please check your Gemini API key and try again.\n\n`;
+          yield `**Troubleshooting:**\n`;
+          yield `- Verify your Gemini API key is valid and has sufficient credits\n`;
+          yield `- Check if you have access to the selected model (${this.settings.model})\n`;
+          yield `- Ensure your API key has permission for vision/audio processing\n`;
+          return this.createMessage('', 'assistant');
+        }
+        
+        // For text-only messages, still fallback but warn the user
+        console.warn('Falling back to mock service due to Gemini API error');
+        yield `⚠️ **Note**: Using mock AI service due to API error. Check console for details.\n\n`;
+        yield* this.useMockServiceStream(content, attachments);
+        return this.createMessage('', 'assistant');
+      }
+    } else {
+      // Fallback to mock for unknown providers
       yield* this.useMockServiceStream(content, attachments);
       return this.createMessage('', 'assistant');
     }
@@ -92,24 +134,26 @@ export class EnhancedAIService {
       return this.mockFileAnalysis(file);
     }
 
-    if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
-      throw new Error('Valid OpenAI API key is required for file analysis. Please check your settings and ensure your API key starts with "sk-" and is properly configured.');
-    }
+    // Route to provider-specific file analysis
+    if (this.settings.provider === 'openai') {
+      if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
+        throw new Error('Valid OpenAI API key is required for file analysis. Please check your settings and ensure your API key starts with "sk-" and is properly configured.');
+      }
 
-    // For image analysis, ensure we're using a vision-capable model
-    if (file.type.startsWith('image/') && !this.settings.model.includes('gpt-4')) {
-      throw new Error(`Image analysis requires GPT-4 or GPT-4o. Current model: ${this.settings.model}. Please change to GPT-4 or GPT-4o in settings.`);
-    }
+      // For image analysis, ensure we're using a vision-capable model
+      if (file.type.startsWith('image/') && !this.settings.model.includes('gpt-4')) {
+        throw new Error(`Image analysis requires GPT-4 or GPT-4o. Current model: ${this.settings.model}. Please change to GPT-4 or GPT-4o in settings.`);
+      }
 
-    try {
-      return await this.analyzeFileWithOpenAI(file);
-    } catch (error) {
-      console.error('OpenAI file analysis error:', error);
-      
-      // For image and audio files, provide specific error information
-      if (file.type.startsWith('image/') || file.type.startsWith('audio/')) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
-        return `⚠️ **OpenAI API Error for ${file.type.startsWith('image/') ? 'Image' : 'Audio'} Analysis**
+      try {
+        return await this.analyzeFileWithOpenAI(file);
+      } catch (error) {
+        console.error('OpenAI file analysis error:', error);
+        
+        // For image and audio files, provide specific error information
+        if (file.type.startsWith('image/') || file.type.startsWith('audio/')) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown OpenAI API error';
+          return `⚠️ **OpenAI API Error for ${file.type.startsWith('image/') ? 'Image' : 'Audio'} Analysis**
 
 **Error**: ${errorMessage}
 
@@ -122,11 +166,48 @@ export class EnhancedAIService {
 - For audio files, make sure the format is supported (mp3, wav, m4a, etc.)
 
 **Note**: File analysis requires a valid OpenAI API key and access to GPT-4 Vision for images or Whisper for audio.`;
+        }
+        
+        // For other file types, still fallback but inform the user
+        console.warn('Falling back to mock analysis due to OpenAI API error');
+        return `⚠️ **Note**: Using mock analysis due to API error.\n\n${this.mockFileAnalysis(file)}`;
       }
-      
-      // For other file types, still fallback but inform the user
-      console.warn('Falling back to mock analysis due to OpenAI API error');
-      return `⚠️ **Note**: Using mock analysis due to API error.\n\n${this.mockFileAnalysis(file)}`;
+    } else if (this.settings.provider === 'gemini') {
+      if (!this.settings.geminiApiKey || !this.isValidGeminiKey(this.settings.geminiApiKey)) {
+        throw new Error('Valid Gemini API key is required for file analysis. Please check your settings and ensure your API key is properly configured.');
+      }
+
+      try {
+        return await this.analyzeFileWithGemini(file);
+      } catch (error) {
+        console.error('Gemini file analysis error:', error);
+        
+        // For image and audio files, provide specific error information
+        if (file.type.startsWith('image/') || file.type.startsWith('audio/')) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown Gemini API error';
+          return `⚠️ **Gemini API Error for ${file.type.startsWith('image/') ? 'Image' : 'Audio'} Analysis**
+
+**Error**: ${errorMessage}
+
+**File**: ${file.name} (${file.type}, ${this.formatFileSize(file.size)})
+
+**Troubleshooting:**
+- Verify your Gemini API key is valid and has sufficient credits
+- Check if you have access to Gemini Pro Vision (required for image analysis)
+- Try a different file format or size
+
+**Available Formats:**
+- Images: PNG, JPEG, GIF, WebP (max 20MB)
+- Audio: MP3, WAV, M4A, FLAC (max 25MB)`;
+        }
+        
+        // For other file types, still fallback but inform the user
+        console.warn('Falling back to mock analysis due to Gemini API error');
+        return `⚠️ **Note**: Using mock analysis due to API error.\n\n${this.mockFileAnalysis(file)}`;
+      }
+    } else {
+      // Fallback to mock for unknown providers
+      return this.mockFileAnalysis(file);
     }
   }
 
@@ -277,6 +358,105 @@ export class EnhancedAIService {
     }
   }
 
+  private async *useGeminiServiceStream(
+    content: string, 
+    attachments: FileAttachment[] = [],
+    conversationHistory: AIMessage[] = [],
+    branchContext?: BranchContext
+  ): AsyncGenerator<string, AIMessage, unknown> {
+    const messages = conversationHistory.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.content }]
+    }));
+
+    // Add the current message
+    const currentMessageParts: any[] = [{ text: content }];
+    
+    // Handle attachments for Gemini
+    for (const attachment of attachments) {
+      if (attachment.type.startsWith('image/')) {
+        // For images, add to message parts
+        currentMessageParts.push({
+          inlineData: {
+            mimeType: attachment.type,
+            data: attachment.data?.split(',')[1] || attachment.data // Remove data URL prefix if present
+          }
+        });
+      } else {
+        // For non-image files, include context about the file
+        currentMessageParts.push({
+          text: `[File attached: ${attachment.name} (${attachment.type}, ${this.formatFileSize(attachment.size)}). Please analyze this file if relevant to the conversation.]`
+        });
+      }
+    }
+
+    messages.push({
+      role: 'user',
+      parts: currentMessageParts
+    });
+
+    const requestBody = {
+      contents: messages,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4000
+      }
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:streamGenerateContent?key=${this.settings.geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error('No response body received from Gemini API');
+    }
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+                const parts = data.candidates[0].content.parts;
+                if (parts && parts[0] && parts[0].text) {
+                  yield parts[0].text;
+                }
+              }
+            } catch (e) {
+              // Skip invalid JSON
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    
+    // Return a placeholder message - the actual message will be constructed by the caller
+    return this.createMessage('', 'assistant');
+  }
+
   private async analyzeFileWithOpenAI(file: FileAttachment): Promise<string> {
     let analysisPrompt = '';
     let messageContent: any[] = [];
@@ -371,6 +551,84 @@ Provide insights about:
     return data.choices[0].message.content;
   }
 
+  private async analyzeFileWithGemini(file: FileAttachment): Promise<string> {
+    let analysisPrompt = '';
+    const parts: any[] = [];
+
+    if (file.type.startsWith('image/')) {
+      analysisPrompt = `Please analyze this image in detail. Describe what you see, including:
+- Main subjects and objects
+- Colors, composition, and visual elements
+- Any text or writing visible
+- Context or setting
+- Any notable details or interesting aspects
+
+Please provide a thorough analysis that would be helpful for someone who cannot see the image.`;
+      
+      parts.push({ text: analysisPrompt });
+      parts.push({
+        inlineData: {
+          mimeType: file.type,
+          data: file.data?.split(',')[1] || file.data // Remove data URL prefix if present
+        }
+      });
+    } else if (file.type.startsWith('audio/')) {
+      // For audio files, we'll need to handle them differently
+      // Gemini doesn't support audio analysis directly, so we'll provide a helpful message
+      return `⚠️ **Audio Analysis Not Supported**
+
+**File**: ${file.name} (${file.type}, ${this.formatFileSize(file.size)})
+
+Gemini does not currently support direct audio file analysis. For audio transcription and analysis, please:
+
+1. Use OpenAI (which supports Whisper for audio transcription)
+2. Or convert your audio to text first and then analyze the text
+3. Or use a dedicated audio transcription service
+
+**Supported File Types with Gemini:**
+- Images: PNG, JPEG, GIF, WebP
+- Text files: TXT, MD, JSON, etc.`;
+    } else {
+      // For other file types, we can't process them directly
+      analysisPrompt = `I can see you've attached a file named "${file.name}" (${file.type}, ${this.formatFileSize(file.size)}). 
+
+Unfortunately, I cannot directly analyze this file type with Gemini. I can help you with:
+- Image analysis (PNG, JPEG, GIF, WebP)
+- Text-based discussions about the file
+- General questions about this file type
+
+If this is a text file, please copy and paste the content, and I'll be happy to analyze it for you.`;
+      
+      parts.push({ text: analysisPrompt });
+    }
+
+    const requestBody = {
+      contents: [{
+        parts: parts
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4000
+      }
+    };
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:generateContent?key=${this.settings.geminiApiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+  }
+
   private async *useMockServiceStream(content: string, attachments: FileAttachment[]): AsyncGenerator<string, void, unknown> {
     const responses = [
       "I can see you've sent a message",
@@ -463,8 +721,29 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
     return key.startsWith('sk-') && key.length > 20;
   }
 
+  private isValidGeminiKey(key: string): boolean {
+    return key.startsWith('AIza') && key.length > 20;
+  }
+
   // Test the API key and model access
   async testAPIConnection(): Promise<{ success: boolean; error?: string }> {
+    // Handle different providers
+    if (this.settings.provider === 'mock') {
+      return { success: true };
+    }
+    
+    if (this.settings.provider === 'openai') {
+      return await this.testOpenAIConnection();
+    }
+    
+    if (this.settings.provider === 'gemini') {
+      return await this.testGeminiConnection();
+    }
+
+    return { success: false, error: 'Unknown provider' };
+  }
+
+  private async testOpenAIConnection(): Promise<{ success: boolean; error?: string }> {
     if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
       return { success: false, error: 'Invalid API key format. OpenAI keys should start with "sk-"' };
     }
@@ -502,6 +781,48 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Network error connecting to OpenAI' 
+      };
+    }
+  }
+
+  private async testGeminiConnection(): Promise<{ success: boolean; error?: string }> {
+    if (!this.settings.geminiApiKey || !this.isValidGeminiKey(this.settings.geminiApiKey)) {
+      return { success: false, error: 'Invalid API key format. Gemini keys should start with "AIza"' };
+    }
+
+    try {
+      // Test with a simple request to Gemini API
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:generateContent?key=${this.settings.geminiApiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: "Hello"
+                }
+              ]
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        return { 
+          success: false, 
+          error: `Gemini API Error (${response.status}): ${errorData.error?.message || response.statusText}` 
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Network error connecting to Gemini' 
       };
     }
   }

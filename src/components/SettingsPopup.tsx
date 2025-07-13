@@ -5,7 +5,9 @@ import { EnhancedAIService } from '../services/enhancedAIService';
 
 export interface SettingsConfig {
   openaiApiKey: string;
-  aiEngine: 'openai-gpt4' | 'openai-gpt3.5' | 'openai-gpt4o' | 'mock';
+  geminiApiKey: string;
+  provider: 'openai' | 'gemini' | 'mock';
+  aiEngine: string;
   model: string;
 }
 
@@ -16,11 +18,64 @@ interface SettingsPopupProps {
   currentSettings: SettingsConfig;
 }
 
-const AI_ENGINES = [
-  { value: 'openai-gpt4o' as const, label: 'GPT-4o (Latest)', description: 'Most capable model' },
-  { value: 'openai-gpt4' as const, label: 'GPT-4', description: 'Advanced reasoning' },
-  { value: 'openai-gpt3.5' as const, label: 'GPT-3.5 Turbo', description: 'Fast and efficient' },
-  { value: 'mock' as const, label: 'Mock AI (Demo)', description: 'For testing without API key' },
+interface AIProvider {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  apiKeyLabel: string;
+  apiKeyPlaceholder: string;
+  models: Array<{
+    id: string;
+    name: string;
+    description: string;
+    engine: string;
+  }>;
+}
+
+const AI_PROVIDERS: AIProvider[] = [
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    icon: '🤖',
+    description: 'GPT models for advanced reasoning and conversation',
+    apiKeyLabel: 'OpenAI API Key',
+    apiKeyPlaceholder: 'sk-...',
+    models: [
+      { id: 'gpt-4o', name: 'GPT-4o', description: 'Most capable model with vision', engine: 'openai-gpt4o' },
+      { id: 'gpt-4', name: 'GPT-4', description: 'Advanced reasoning capabilities', engine: 'openai-gpt4' },
+      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective', engine: 'openai-gpt3.5' },
+    ]
+  },
+  {
+    id: 'gemini',
+    name: 'Google Gemini',
+    icon: '✨',
+    description: 'Google\'s advanced AI models with multimodal capabilities',
+    apiKeyLabel: 'Gemini API Key',
+    apiKeyPlaceholder: 'AIza...',
+    models: [
+      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Enhanced thinking and reasoning, multimodal understanding', engine: 'gemini-2.5-pro' },
+      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Adaptive thinking, cost efficiency', engine: 'gemini-2.5-flash' },
+      { id: 'gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview', description: 'Most cost-efficient model supporting high throughput', engine: 'gemini-2.5-flash-lite-preview-06-17' },
+      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Next generation features, speed, and realtime streaming', engine: 'gemini-2.0-flash' },
+      { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', description: 'Cost efficiency and low latency', engine: 'gemini-2.0-flash-lite' },
+      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and versatile performance across diverse tasks', engine: 'gemini-1.5-flash' },
+      { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', description: 'High volume and lower intelligence tasks', engine: 'gemini-1.5-flash-8b' },
+      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Complex reasoning tasks requiring more intelligence', engine: 'gemini-1.5-pro' },
+    ]
+  },
+  {
+    id: 'mock',
+    name: 'Demo Mode',
+    icon: '🎭',
+    description: 'Mock AI for testing without API keys',
+    apiKeyLabel: '',
+    apiKeyPlaceholder: '',
+    models: [
+      { id: 'mock', name: 'Mock AI', description: 'Simulated responses for demo purposes', engine: 'mock' },
+    ]
+  }
 ];
 
 const SettingsPopup: React.FC<SettingsPopupProps> = ({
@@ -29,13 +84,39 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   onSave,
   currentSettings
 }) => {
-  const [apiKey, setApiKey] = useState(currentSettings.openaiApiKey);
-  const [selectedEngine, setSelectedEngine] = useState(currentSettings.aiEngine);
+  const [openaiApiKey, setOpenaiApiKey] = useState(currentSettings.openaiApiKey || '');
+  const [geminiApiKey, setGeminiApiKey] = useState(currentSettings.geminiApiKey || '');
+  const [selectedProvider, setSelectedProvider] = useState(currentSettings.provider || 'openai');
+  const [selectedEngine, setSelectedEngine] = useState(currentSettings.aiEngine || 'openai-gpt3.5');
   const [showApiKey, setShowApiKey] = useState(false);
   const [useTextArea, setUseTextArea] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  // Get current provider data
+  const currentProviderData = AI_PROVIDERS.find(p => p.id === selectedProvider) || AI_PROVIDERS[0];
+  const currentApiKey = selectedProvider === 'openai' ? openaiApiKey : 
+                       selectedProvider === 'gemini' ? geminiApiKey : '';
+
+  // Helper function to get model name from engine
+  const getModelFromEngine = (engine: string): string => {
+    for (const provider of AI_PROVIDERS) {
+      const model = provider.models.find(m => m.engine === engine);
+      if (model) return model.id;
+    }
+    return 'gpt-3.5-turbo'; // fallback
+  };
+
+  // Helper function to get provider from engine
+  const getProviderFromEngine = (engine: string): string => {
+    for (const provider of AI_PROVIDERS) {
+      if (provider.models.some(m => m.engine === engine)) {
+        return provider.id;
+      }
+    }
+    return 'openai'; // fallback
+  };
 
   // Handle outside click to close modal
   useEffect(() => {
@@ -54,69 +135,69 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    setApiKey(currentSettings.openaiApiKey);
-    setSelectedEngine(currentSettings.aiEngine);
+    setOpenaiApiKey(currentSettings.openaiApiKey || '');
+    setGeminiApiKey(currentSettings.geminiApiKey || '');
+    setSelectedProvider(currentSettings.provider || 'openai');
+    setSelectedEngine(currentSettings.aiEngine || 'openai-gpt3.5');
   }, [currentSettings, isOpen]);
 
   // Handle immediate model selection change with persistence
-  const handleEngineChange = (newEngine: SettingsConfig['aiEngine']) => {
+  const handleEngineChange = (newEngine: string) => {
     setSelectedEngine(newEngine);
     setConnectionResult(null);
     
-    // Immediately save the engine selection to localStorage
-    const modelMap = {
-      'openai-gpt4o': 'gpt-4o',
-      'openai-gpt4': 'gpt-4',
-      'openai-gpt3.5': 'gpt-3.5-turbo',
-      'mock': 'mock'
-    };
-
-    const updatedSettings = {
-      openaiApiKey: apiKey,
+    const newProvider = getProviderFromEngine(newEngine);
+    setSelectedProvider(newProvider as 'openai' | 'gemini' | 'mock');
+    
+    const updatedSettings: SettingsConfig = {
+      openaiApiKey,
+      geminiApiKey,
+      provider: newProvider as 'openai' | 'gemini' | 'mock',
       aiEngine: newEngine,
-      model: modelMap[newEngine]
+      model: getModelFromEngine(newEngine)
     };
 
-    console.log('🔄 Engine changed to:', newEngine, 'Model:', modelMap[newEngine]);
+    console.log('🔄 Engine changed to:', newEngine, 'Provider:', newProvider);
     onSave(updatedSettings);
   };
 
   // Handle immediate API key change with persistence
-  const handleApiKeyChange = (newApiKey: string) => {
-    setApiKey(newApiKey);
+  const handleApiKeyChange = (newApiKey: string, provider: string) => {
+    if (provider === 'openai') {
+      setOpenaiApiKey(newApiKey);
+    } else if (provider === 'gemini') {
+      setGeminiApiKey(newApiKey);
+    }
     
-    // Immediately save the API key to localStorage
-    const modelMap = {
-      'openai-gpt4o': 'gpt-4o',
-      'openai-gpt4': 'gpt-4',
-      'openai-gpt3.5': 'gpt-3.5-turbo',
-      'mock': 'mock'
-    };
-
-    const updatedSettings = {
-      openaiApiKey: newApiKey,
+    const updatedSettings: SettingsConfig = {
+      openaiApiKey: provider === 'openai' ? newApiKey : openaiApiKey,
+      geminiApiKey: provider === 'gemini' ? newApiKey : geminiApiKey,
+      provider: selectedProvider as 'openai' | 'gemini' | 'mock',
       aiEngine: selectedEngine,
-      model: modelMap[selectedEngine]
+      model: getModelFromEngine(selectedEngine)
     };
 
-    console.log('🔑 API key updated and auto-saved');
+    console.log(`🔑 ${provider} API key updated and auto-saved`);
     onSave(updatedSettings);
   };
 
   const handleCancel = () => {
-    setApiKey(currentSettings.openaiApiKey);
-    setSelectedEngine(currentSettings.aiEngine);
+    setOpenaiApiKey(currentSettings.openaiApiKey || '');
+    setGeminiApiKey(currentSettings.geminiApiKey || '');
+    setSelectedProvider(currentSettings.provider || 'openai');
+    setSelectedEngine(currentSettings.aiEngine || 'openai-gpt3.5');
     setConnectionResult(null);
     onClose();
   };
 
   const testConnection = async () => {
-    if (selectedEngine === 'mock') {
+    if (selectedProvider === 'mock') {
       setConnectionResult({ success: true, message: 'Mock AI service is working correctly.' });
       return;
     }
 
-    if (!apiKey.trim()) {
+    const currentApiKey = selectedProvider === 'openai' ? openaiApiKey : geminiApiKey;
+    if (!currentApiKey.trim()) {
       setConnectionResult({ success: false, message: 'Please enter an API key first.' });
       return;
     }
@@ -125,17 +206,12 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
     setConnectionResult(null);
 
     try {
-      const modelMap = {
-        'openai-gpt4o': 'gpt-4o',
-        'openai-gpt4': 'gpt-4',
-        'openai-gpt3.5': 'gpt-3.5-turbo',
-        'mock': 'mock'
-      };
-
       const testService = new EnhancedAIService({
-        openaiApiKey: apiKey,
+        openaiApiKey,
+        geminiApiKey,
+        provider: selectedProvider as 'openai' | 'gemini' | 'mock',
         aiEngine: selectedEngine,
-        model: modelMap[selectedEngine]
+        model: getModelFromEngine(selectedEngine)
       });
 
       const result = await testService.testAPIConnection();
@@ -180,223 +256,226 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-6">
-          {/* API Key Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Key size={16} className="text-gray-600" />
-                <label className="text-sm font-medium text-gray-700">
-                  OpenAI API Key
-                </label>
-              </div>
-              <button
-                type="button"
-                onClick={() => setUseTextArea(!useTextArea)}
-                className="text-xs text-blue-600 hover:text-blue-800 underline"
-              >
-                {useTextArea ? 'Use Input Field' : 'Having Paste Issues?'}
-              </button>
-            </div>
             
-            {!useTextArea ? (
-              <div className="relative">
-                <input
-                  ref={(input) => {
-                    // Ensure the input can receive focus and paste events
-                    if (input) {
-                      input.addEventListener('paste', (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const pastedText = e.clipboardData?.getData('text') || '';
-                        if (pastedText) {
-                          handleApiKeyChange(pastedText.trim());
-                        }
-                      });
-                    }
-                  }}
-                  type={showApiKey ? 'text' : 'password'}
-                  value={apiKey}
-                  onChange={(e) => handleApiKeyChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    // Handle Ctrl+V / Cmd+V explicitly
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-                      e.preventDefault();
-                      navigator.clipboard.readText().then(text => {
-                        if (text) {
-                          handleApiKeyChange(text.trim());
-                        }
-                      }).catch(() => {
-                        // Fallback - let the browser handle it normally
-                        e.target.dispatchEvent(new Event('paste', { bubbles: true }));
-                      });
-                    }
-                  }}
-                  placeholder="sk-..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-24"
-                  autoComplete="off"
-                  spellCheck={false}
-                  style={{ 
-                    WebkitTextSecurity: showApiKey ? 'none' : 'disc' 
-                  } as React.CSSProperties}
-                />
-                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+            {/* Provider Tabs */}
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-gray-700">
+                AI Provider
+              </label>
+              
+              {/* Tab Navigation */}
+              <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                {AI_PROVIDERS.map((provider) => (
                   <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        if (text) {
-                          handleApiKeyChange(text.trim());
-                        }
-                      } catch (err) {
-                        console.warn('Could not read clipboard:', err);
-                        // Show user feedback
-                        alert('Please try using Ctrl+V (or Cmd+V) to paste, or use the "Having Paste Issues?" link above for an alternative input method');
-                      }
-                    }}
-                    className="text-blue-500 hover:text-blue-700 text-xs font-medium px-2 py-1 rounded border border-blue-300 hover:border-blue-500 transition-colors"
-                    title="Paste API key from clipboard"
+                    key={provider.id}
+                    onClick={() => setSelectedProvider(provider.id as 'openai' | 'gemini' | 'mock')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      selectedProvider === provider.id
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
                   >
-                    Paste
+                    <span className="text-lg">{provider.icon}</span>
+                    <span>{provider.name}</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="text-gray-500 hover:text-gray-700 text-sm font-medium px-1"
-                  >
-                    {showApiKey ? 'Hide' : 'Show'}
-                  </button>
-                </div>
+                ))}
               </div>
-            ) : (
-              <div className="space-y-2">
-                <textarea
-                  value={apiKey}
-                  onChange={(e) => handleApiKeyChange(e.target.value)}
-                  placeholder="Paste your OpenAI API key here (sk-...)"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  autoComplete="off"
-                  spellCheck={false}
-                  rows={3}
-                />
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-600">
-                    <Type size={12} className="inline mr-1" />
-                    Alternative input method - paste should work here
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="text-gray-500 hover:text-gray-700 text-sm font-medium"
-                  >
-                    {showApiKey ? 'Hide' : 'Show'} Characters
-                  </button>
-                </div>
-                {!showApiKey && (
-                  <div className="bg-gray-100 p-2 rounded text-xs font-mono text-gray-600">
-                    {apiKey ? '*'.repeat(Math.min(apiKey.length, 50)) : 'No API key entered'}
-                  </div>
-                )}
-              </div>
-            )}
-            
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <AlertCircle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
-                <div className="text-sm text-amber-800">
-                  <p className="font-medium">BYOK (Bring Your Own Key)</p>
-                  <p className="text-xs mt-1">
-                    Your API key is stored locally and never sent to our servers. 
-                    Get your key from{' '}
-                    <a 
-                      href="https://platform.openai.com/api-keys" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="underline hover:no-underline"
-                    >
-                      OpenAI Platform
-                    </a>
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            {/* Test Connection */}
-            {selectedEngine !== 'mock' && (
-              <div className="flex gap-3">
+              {/* Provider Description */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>{currentProviderData.name}:</strong> {currentProviderData.description}
+                </p>
+              </div>
+
+              {/* API Key Section (only for non-mock providers) */}
+              {selectedProvider !== 'mock' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key size={16} className="text-gray-600" />
+                      <label className="text-sm font-medium text-gray-700">
+                        {currentProviderData.apiKeyLabel}
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUseTextArea(!useTextArea)}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      {useTextArea ? 'Use Input Field' : 'Having Paste Issues?'}
+                    </button>
+                  </div>
+                  
+                  {!useTextArea ? (
+                    <div className="relative">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={currentApiKey}
+                        onChange={(e) => handleApiKeyChange(e.target.value, selectedProvider)}
+                        onKeyDown={(e) => {
+                          if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                            e.preventDefault();
+                            navigator.clipboard.readText().then(text => {
+                              if (text) {
+                                handleApiKeyChange(text.trim(), selectedProvider);
+                              }
+                            }).catch(() => {
+                              // Fallback handled normally
+                            });
+                          }
+                        }}
+                        placeholder={currentProviderData.apiKeyPlaceholder}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-24"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const text = await navigator.clipboard.readText();
+                              if (text) {
+                                handleApiKeyChange(text.trim(), selectedProvider);
+                              }
+                            } catch (err) {
+                              console.warn('Could not read clipboard:', err);
+                              alert('Please try using Ctrl+V (or Cmd+V) to paste');
+                            }
+                          }}
+                          className="text-blue-500 hover:text-blue-700 text-xs font-medium px-2 py-1 rounded border border-blue-300 hover:border-blue-500 transition-colors"
+                          title="Paste API key from clipboard"
+                        >
+                          Paste
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="text-gray-500 hover:text-gray-700 text-sm font-medium px-1"
+                        >
+                          {showApiKey ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <textarea
+                        value={currentApiKey}
+                        onChange={(e) => handleApiKeyChange(e.target.value, selectedProvider)}
+                        placeholder={`Paste your ${currentProviderData.name} API key here (${currentProviderData.apiKeyPlaceholder})`}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                        autoComplete="off"
+                        spellCheck={false}
+                        rows={3}
+                      />
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-gray-600">
+                          <Type size={12} className="inline mr-1" />
+                          Alternative input method - paste should work here
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          {showApiKey ? 'Hide' : 'Show'} API key
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* API Key Info */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle size={14} className="text-amber-600" />
+                      <div className="text-xs text-amber-700">
+                        <strong>BYOK (Bring Your Own Key)</strong><br />
+                        Your API key is stored locally and never sent to our servers.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Model Selection */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Model Selection
+                </label>
+                
+                <div className="space-y-2">
+                  {currentProviderData.models.map((model) => (
+                    <label
+                      key={model.id}
+                      className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                        selectedEngine === model.engine
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="aiModel"
+                        value={model.engine}
+                        checked={selectedEngine === model.engine}
+                        onChange={(e) => handleEngineChange(e.target.value)}
+                        className="mt-1 text-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{model.name}</div>
+                        <div className="text-sm text-gray-600">{model.description}</div>
+                        {selectedProvider !== 'mock' && !currentApiKey && (
+                          <div className="text-xs text-red-600 mt-1">
+                            Requires {currentProviderData.name} API key
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Test Connection */}
+              {selectedProvider !== 'mock' && currentApiKey && (
                 <button
                   onClick={testConnection}
-                  disabled={testingConnection || !apiKey.trim()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg transition-colors text-sm font-medium"
+                  disabled={testingConnection}
+                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  <Wifi size={16} className={testingConnection ? 'animate-pulse' : ''} />
-                  {testingConnection ? 'Testing...' : 'Test Connection'}
+                  {testingConnection ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Testing Connection...
+                    </>
+                  ) : (
+                    <>
+                      <Wifi size={16} />
+                      Test {currentProviderData.name} Connection
+                    </>
+                  )}
                 </button>
-              </div>
-            )}
+              )}
 
-            {/* Connection Result */}
-            {connectionResult && (
-              <div className={`flex items-start gap-3 p-3 rounded-lg ${
-                connectionResult.success 
-                  ? 'bg-green-50 border border-green-200' 
-                  : 'bg-red-50 border border-red-200'
-              }`}>
-                {connectionResult.success ? (
-                  <CheckCircle size={16} className="text-green-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <AlertCircle size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
-                )}
-                <div className={`text-sm ${
-                  connectionResult.success ? 'text-green-800' : 'text-red-800'
+              {/* Connection Result */}
+              {connectionResult && (
+                <div className={`p-3 rounded-lg border ${
+                  connectionResult.success 
+                    ? 'bg-green-50 border-green-200 text-green-700' 
+                    : 'bg-red-50 border-red-200 text-red-700'
                 }`}>
-                  <p className="font-medium">
-                    {connectionResult.success ? 'Connection Successful' : 'Connection Failed'}
-                  </p>
-                  <p className="text-xs mt-1">{connectionResult.message}</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* AI Engine Selection */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">
-              AI Engine
-            </label>
-            
-            <div className="space-y-2">
-              {AI_ENGINES.map((engine) => (
-                <label
-                  key={engine.value}
-                  className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                    selectedEngine === engine.value
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="aiEngine"
-                    value={engine.value}
-                    checked={selectedEngine === engine.value}
-                    onChange={(e) => handleEngineChange(e.target.value as SettingsConfig['aiEngine'])}
-                    className="mt-1 text-blue-500"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">{engine.label}</div>
-                    <div className="text-sm text-gray-600">{engine.description}</div>
-                    {engine.value !== 'mock' && !apiKey && (
-                      <div className="text-xs text-red-600 mt-1">
-                        Requires API key
-                      </div>
+                  <div className="flex items-center gap-2">
+                    {connectionResult.success ? (
+                      <CheckCircle size={16} className="text-green-500" />
+                    ) : (
+                      <AlertCircle size={16} className="text-red-500" />
                     )}
+                    <span className="text-sm font-medium">{connectionResult.message}</span>
                   </div>
-                </label>
-              ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
         </div>
         
         {/* Footer */}
