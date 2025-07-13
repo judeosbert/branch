@@ -727,16 +727,21 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
 
   // Test the API key and model access
   async testAPIConnection(): Promise<{ success: boolean; error?: string }> {
+    console.log('🔍 testAPIConnection - Provider:', this.settings.provider);
+    console.log('🔍 testAPIConnection - Settings:', this.settings);
+    
     // Handle different providers
     if (this.settings.provider === 'mock') {
       return { success: true };
     }
     
     if (this.settings.provider === 'openai') {
+      console.log('🔍 testAPIConnection - Routing to OpenAI');
       return await this.testOpenAIConnection();
     }
     
     if (this.settings.provider === 'gemini') {
+      console.log('🔍 testAPIConnection - Routing to Gemini');
       return await this.testGeminiConnection();
     }
 
@@ -744,6 +749,9 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
   }
 
   private async testOpenAIConnection(): Promise<{ success: boolean; error?: string }> {
+    console.log('🔍 testOpenAIConnection - OpenAI API Key:', this.settings.openaiApiKey ? 'Present' : 'Missing');
+    console.log('🔍 testOpenAIConnection - Making request to: https://api.openai.com/v1/models');
+    
     if (!this.settings.openaiApiKey || !this.isValidOpenAIKey(this.settings.openaiApiKey)) {
       return { success: false, error: 'Invalid API key format. OpenAI keys should start with "sk-"' };
     }
@@ -786,13 +794,19 @@ File type: ${file.type} (${this.formatFileSize(file.size)})
   }
 
   private async testGeminiConnection(): Promise<{ success: boolean; error?: string }> {
+    console.log('🔍 testGeminiConnection - Gemini API Key:', this.settings.geminiApiKey ? 'Present' : 'Missing');
+    console.log('🔍 testGeminiConnection - Model:', this.settings.model);
+    
     if (!this.settings.geminiApiKey || !this.isValidGeminiKey(this.settings.geminiApiKey)) {
       return { success: false, error: 'Invalid API key format. Gemini keys should start with "AIza"' };
     }
 
     try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:generateContent?key=${this.settings.geminiApiKey}`;
+      console.log('🔍 testGeminiConnection - Making request to:', endpoint);
+      
       // Test with a simple request to Gemini API
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${this.settings.model}:generateContent?key=${this.settings.geminiApiKey}`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

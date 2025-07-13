@@ -86,7 +86,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
 }) => {
   const [openaiApiKey, setOpenaiApiKey] = useState(currentSettings.openaiApiKey || '');
   const [geminiApiKey, setGeminiApiKey] = useState(currentSettings.geminiApiKey || '');
-  const [selectedProvider, setSelectedProvider] = useState(currentSettings.provider || 'openai');
+  const [selectedProvider, setSelectedProvider] = useState<'openai' | 'gemini' | 'mock'>(currentSettings.provider || 'openai');
   const [selectedEngine, setSelectedEngine] = useState(currentSettings.aiEngine || 'openai-gpt3.5');
   const [showApiKey, setShowApiKey] = useState(false);
   const [useTextArea, setUseTextArea] = useState(false);
@@ -141,6 +141,11 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
     setSelectedEngine(currentSettings.aiEngine || 'openai-gpt3.5');
   }, [currentSettings, isOpen]);
 
+  // Clear connection result when provider changes
+  useEffect(() => {
+    setConnectionResult(null);
+  }, [selectedProvider]);
+
   // Handle immediate model selection change with persistence
   const handleEngineChange = (newEngine: string) => {
     setSelectedEngine(newEngine);
@@ -191,12 +196,17 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   };
 
   const testConnection = async () => {
-    if (selectedProvider === 'mock') {
+    const actualProvider = getProviderFromEngine(selectedEngine);
+    console.log('🔍 Test Connection - Selected Provider Tab:', selectedProvider);
+    console.log('🔍 Test Connection - Selected Engine:', selectedEngine);
+    console.log('🔍 Test Connection - Actual Provider for Engine:', actualProvider);
+    
+    if (actualProvider === 'mock') {
       setConnectionResult({ success: true, message: 'Mock AI service is working correctly.' });
       return;
     }
 
-    const currentApiKey = selectedProvider === 'openai' ? openaiApiKey : geminiApiKey;
+    const currentApiKey = actualProvider === 'openai' ? openaiApiKey : geminiApiKey;
     if (!currentApiKey.trim()) {
       setConnectionResult({ success: false, message: 'Please enter an API key first.' });
       return;
@@ -206,13 +216,17 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
     setConnectionResult(null);
 
     try {
-      const testService = new EnhancedAIService({
+      const testSettings = {
         openaiApiKey,
         geminiApiKey,
-        provider: selectedProvider as 'openai' | 'gemini' | 'mock',
+        provider: actualProvider as 'openai' | 'gemini' | 'mock', // Use the provider that matches the selected engine
         aiEngine: selectedEngine,
         model: getModelFromEngine(selectedEngine)
-      });
+      };
+      
+      console.log('🔍 Test Connection - Settings:', testSettings);
+      
+      const testService = new EnhancedAIService(testSettings);
 
       const result = await testService.testAPIConnection();
       setConnectionResult({
@@ -268,7 +282,10 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                 {AI_PROVIDERS.map((provider) => (
                   <button
                     key={provider.id}
-                    onClick={() => setSelectedProvider(provider.id as 'openai' | 'gemini' | 'mock')}
+                    onClick={() => {
+                      setSelectedProvider(provider.id as 'openai' | 'gemini' | 'mock');
+                      setConnectionResult(null); // Clear connection result when switching providers
+                    }}
                     className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       selectedProvider === provider.id
                         ? 'bg-white text-blue-600 shadow-sm'
@@ -395,6 +412,58 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* Test Connection Button - Only show for provider that matches currently selected model */}
+                  {selectedProvider === getProviderFromEngine(selectedEngine) && 
+                    (getProviderFromEngine(selectedEngine) === 'mock' || (currentApiKey && currentApiKey.trim().length > 0)) && (
+                    <button
+                      onClick={testConnection}
+                      disabled={testingConnection}
+                      className={`w-full font-medium py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+                        connectionResult?.success
+                          ? 'bg-green-500 text-white'
+                          : testingConnection
+                          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                          : 'bg-blue-500 hover:bg-blue-600 text-white'
+                      }`}
+                    >
+                      {testingConnection ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Testing Connection...
+                        </>
+                      ) : connectionResult?.success ? (
+                        <>
+                          <CheckCircle 
+                            size={16} 
+                            className="text-white animate-bounce" 
+                            style={{ animationDuration: '1s', animationIterationCount: '2' }}
+                          />
+                          Connection Successful!
+                        </>
+                      ) : connectionResult?.success === false ? (
+                        <>
+                          <AlertCircle size={16} className="text-red-400" />
+                          Connection Failed - Try Again
+                        </>
+                      ) : (
+                        <>
+                          <Wifi size={16} />
+                          Test {currentProviderData.name} Connection
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Connection Error Message (only for failures) */}
+                  {connectionResult && !connectionResult.success && (
+                    <div className="p-3 rounded-lg border bg-red-50 border-red-200 text-red-700">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm">{connectionResult.message}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -435,45 +504,6 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                   ))}
                 </div>
               </div>
-
-              {/* Test Connection */}
-              {selectedProvider !== 'mock' && currentApiKey && (
-                <button
-                  onClick={testConnection}
-                  disabled={testingConnection}
-                  className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  {testingConnection ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Testing Connection...
-                    </>
-                  ) : (
-                    <>
-                      <Wifi size={16} />
-                      Test {currentProviderData.name} Connection
-                    </>
-                  )}
-                </button>
-              )}
-
-              {/* Connection Result */}
-              {connectionResult && (
-                <div className={`p-3 rounded-lg border ${
-                  connectionResult.success 
-                    ? 'bg-green-50 border-green-200 text-green-700' 
-                    : 'bg-red-50 border-red-200 text-red-700'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {connectionResult.success ? (
-                      <CheckCircle size={16} className="text-green-500" />
-                    ) : (
-                      <AlertCircle size={16} className="text-red-500" />
-                    )}
-                    <span className="text-sm font-medium">{connectionResult.message}</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
