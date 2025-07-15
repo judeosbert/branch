@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Key, Brain, AlertCircle, Type, CheckCircle, Wifi } from 'lucide-react';
+import { X, Key, Brain, AlertCircle, Type, CheckCircle, Wifi, RefreshCw } from 'lucide-react';
 import { versionService } from '../services/versionService';
 import { EnhancedAIService } from '../services/enhancedAIService';
+import { modelService } from '../services/modelService';
 
 export interface SettingsConfig {
   openaiApiKey: string;
@@ -31,52 +32,9 @@ interface AIProvider {
     description: string;
     engine: string;
   }>;
+  isLoadingModels?: boolean;
+  modelsError?: string;
 }
-
-const AI_PROVIDERS: AIProvider[] = [
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    icon: '🤖',
-    description: 'GPT models for advanced reasoning and conversation',
-    apiKeyLabel: 'OpenAI API Key',
-    apiKeyPlaceholder: 'sk-...',
-    models: [
-      { id: 'gpt-4o', name: 'GPT-4o', description: 'Most capable model with vision', engine: 'openai-gpt4o' },
-      { id: 'gpt-4', name: 'GPT-4', description: 'Advanced reasoning capabilities', engine: 'openai-gpt4' },
-      { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Fast and cost-effective', engine: 'openai-gpt3.5' },
-    ]
-  },
-  {
-    id: 'gemini',
-    name: 'Google Gemini',
-    icon: '✨',
-    description: 'Google\'s advanced AI models with multimodal capabilities',
-    apiKeyLabel: 'Gemini API Key',
-    apiKeyPlaceholder: 'AIza...',
-    models: [
-      { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Enhanced thinking and reasoning, multimodal understanding', engine: 'gemini-2.5-pro' },
-      { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Adaptive thinking, cost efficiency', engine: 'gemini-2.5-flash' },
-      { id: 'gemini-2.5-flash-lite-preview-06-17', name: 'Gemini 2.5 Flash-Lite Preview', description: 'Most cost-efficient model supporting high throughput', engine: 'gemini-2.5-flash-lite-preview-06-17' },
-      { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Next generation features, speed, and realtime streaming', engine: 'gemini-2.0-flash' },
-      { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', description: 'Cost efficiency and low latency', engine: 'gemini-2.0-flash-lite' },
-      { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Fast and versatile performance across diverse tasks', engine: 'gemini-1.5-flash' },
-      { id: 'gemini-1.5-flash-8b', name: 'Gemini 1.5 Flash-8B', description: 'High volume and lower intelligence tasks', engine: 'gemini-1.5-flash-8b' },
-      { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Complex reasoning tasks requiring more intelligence', engine: 'gemini-1.5-pro' },
-    ]
-  },
-  {
-    id: 'mock',
-    name: 'Demo Mode',
-    icon: '🎭',
-    description: 'Mock AI for testing without API keys',
-    apiKeyLabel: '',
-    apiKeyPlaceholder: '',
-    models: [
-      { id: 'mock', name: 'Mock AI', description: 'Simulated responses for demo purposes', engine: 'mock' },
-    ]
-  }
-];
 
 const SettingsPopup: React.FC<SettingsPopupProps> = ({
   isOpen,
@@ -92,17 +50,106 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   const [useTextArea, setUseTextArea] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [connectionResult, setConnectionResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [providers, setProviders] = useState<AIProvider[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Initialize providers with base configuration
+  useEffect(() => {
+    const baseProviders: AIProvider[] = [
+      {
+        id: 'openai',
+        name: 'OpenAI',
+        icon: '🤖',
+        description: 'GPT models for advanced reasoning and conversation',
+        apiKeyLabel: 'OpenAI API Key',
+        apiKeyPlaceholder: 'sk-...',
+        models: []
+      },
+      {
+        id: 'gemini',
+        name: 'Google Gemini',
+        icon: '✨',
+        description: 'Google\'s advanced AI models with multimodal capabilities',
+        apiKeyLabel: 'Gemini API Key',
+        apiKeyPlaceholder: 'AIza...',
+        models: []
+      },
+      {
+        id: 'mock',
+        name: 'Demo Mode',
+        icon: '🎭',
+        description: 'Mock AI for testing without API keys',
+        apiKeyLabel: '',
+        apiKeyPlaceholder: '',
+        models: modelService.getMockModels().models
+      }
+    ];
+    setProviders(baseProviders);
+  }, []);
+
+  // Load models when API key changes
+  useEffect(() => {
+    if (selectedProvider === 'openai' && openaiApiKey) {
+      loadModelsForProvider('openai', openaiApiKey);
+    } else if (selectedProvider === 'gemini' && geminiApiKey) {
+      loadModelsForProvider('gemini', geminiApiKey);
+    }
+  }, [openaiApiKey, geminiApiKey, selectedProvider]);
+
+  const loadModelsForProvider = async (provider: 'openai' | 'gemini', apiKey: string) => {
+    setIsLoadingModels(true);
+    
+    try {
+      const result = provider === 'openai' 
+        ? await modelService.getOpenAIModels(apiKey)
+        : await modelService.getGeminiModels(apiKey);
+
+      setProviders(prev => prev.map(p => 
+        p.id === provider 
+          ? { 
+              ...p, 
+              models: result.models,
+              isLoadingModels: false,
+              modelsError: result.error 
+            }
+          : p
+      ));
+    } catch (error) {
+      console.error(`Error loading ${provider} models:`, error);
+      setProviders(prev => prev.map(p => 
+        p.id === provider 
+          ? { 
+              ...p, 
+              models: [],
+              isLoadingModels: false,
+              modelsError: error instanceof Error ? error.message : 'Failed to load models'
+            }
+          : p
+      ));
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  const refreshModels = async () => {
+    const currentApiKey = selectedProvider === 'openai' ? openaiApiKey : geminiApiKey;
+    if (currentApiKey && selectedProvider !== 'mock') {
+      // Clear cache for the current provider
+      modelService.clearProviderCache(selectedProvider, currentApiKey);
+      await loadModelsForProvider(selectedProvider, currentApiKey);
+    }
+  };
+
   // Get current provider data
-  const currentProviderData = AI_PROVIDERS.find(p => p.id === selectedProvider) || AI_PROVIDERS[0];
+  const currentProviderData = providers.find(p => p.id === selectedProvider) || providers[0];
   const currentApiKey = selectedProvider === 'openai' ? openaiApiKey : 
                        selectedProvider === 'gemini' ? geminiApiKey : '';
 
   // Helper function to get model name from engine
   const getModelFromEngine = (engine: string): string => {
-    for (const provider of AI_PROVIDERS) {
-      const model = provider.models.find(m => m.engine === engine);
+    for (const provider of providers) {
+      const model = provider.models.find((m: any) => m.engine === engine);
       if (model) return model.id;
     }
     return 'gpt-3.5-turbo'; // fallback
@@ -110,8 +157,8 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
 
   // Helper function to get provider from engine
   const getProviderFromEngine = (engine: string): string => {
-    for (const provider of AI_PROVIDERS) {
-      if (provider.models.some(m => m.engine === engine)) {
+    for (const provider of providers) {
+      if (provider.models.some((m: any) => m.engine === engine)) {
         return provider.id;
       }
     }
@@ -145,6 +192,16 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
   useEffect(() => {
     setConnectionResult(null);
   }, [selectedProvider]);
+
+  // Auto-select first available model when provider changes or models are loaded
+  useEffect(() => {
+    if (currentProviderData?.models && currentProviderData.models.length > 0) {
+      const firstModel = currentProviderData.models[0];
+      if (firstModel.engine && selectedEngine !== firstModel.engine) {
+        setSelectedEngine(firstModel.engine);
+      }
+    }
+  }, [currentProviderData, selectedProvider]);
 
   // Handle immediate model selection change with persistence
   const handleEngineChange = (newEngine: string) => {
@@ -279,7 +336,7 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
               
               {/* Tab Navigation */}
               <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-                {AI_PROVIDERS.map((provider) => (
+                {providers.map((provider) => (
                   <button
                     key={provider.id}
                     onClick={() => {
@@ -474,35 +531,76 @@ const SettingsPopup: React.FC<SettingsPopupProps> = ({
                 </label>
                 
                 <div className="space-y-2">
-                  {currentProviderData.models.map((model) => (
-                    <label
-                      key={model.id}
-                      className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
-                        selectedEngine === model.engine
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="aiModel"
-                        value={model.engine}
-                        checked={selectedEngine === model.engine}
-                        onChange={(e) => handleEngineChange(e.target.value)}
-                        className="mt-1 text-blue-500"
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-900">{model.name}</div>
-                        <div className="text-sm text-gray-600">{model.description}</div>
-                        {selectedProvider !== 'mock' && !currentApiKey && (
-                          <div className="text-xs text-red-600 mt-1">
-                            Requires {currentProviderData.name} API key
-                          </div>
-                        )}
+                  {isLoadingModels ? (
+                    <div className="flex items-center justify-center p-4 border border-gray-200 rounded-lg">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Loading models...
                       </div>
-                    </label>
-                  ))}
+                    </div>
+                  ) : currentProviderData.modelsError ? (
+                    <div className="p-4 border border-red-200 rounded-lg bg-red-50">
+                      <p className="text-red-600 text-sm mb-2">
+                        Error loading models: {currentProviderData.modelsError}
+                      </p>
+                      {selectedProvider !== 'mock' && currentApiKey && (
+                        <button
+                          onClick={refreshModels}
+                          className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Retry
+                        </button>
+                      )}
+                    </div>
+                  ) : currentProviderData.models.length === 0 && selectedProvider !== 'mock' ? (
+                    <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                      <p className="text-gray-600 text-sm">
+                        {currentApiKey ? 'No models available' : 'Enter API key to load models'}
+                      </p>
+                    </div>
+                  ) : (
+                    currentProviderData.models.map((model) => (
+                      <label
+                        key={model.id}
+                        className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-all ${
+                          selectedEngine === model.engine
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="aiModel"
+                          value={model.engine}
+                          checked={selectedEngine === model.engine}
+                          onChange={(e) => handleEngineChange(e.target.value)}
+                          className="mt-1 text-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="font-medium text-gray-900">{model.name}</div>
+                          <div className="text-sm text-gray-600">{model.description}</div>
+                          {selectedProvider !== 'mock' && !currentApiKey && (
+                            <div className="text-xs text-red-600 mt-1">
+                              Requires {currentProviderData.name} API key
+                            </div>
+                          )}
+                        </div>
+                      </label>
+                    ))
+                  )}
                 </div>
+                
+                {/* Refresh button for models */}
+                {selectedProvider !== 'mock' && currentApiKey && !isLoadingModels && (
+                  <button
+                    onClick={refreshModels}
+                    className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Refresh models
+                  </button>
+                )}
               </div>
             </div>
           </div>

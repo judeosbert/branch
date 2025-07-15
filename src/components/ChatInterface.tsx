@@ -582,11 +582,7 @@ const ChatInterface = ({  onSendMessage,
                             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
                               {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
                             </div>
-                            <div className={`flex-1 relative ${
-                              message.sender === 'assistant' 
-                                ? 'max-w-4xl' // Constrain AI responses to readable width
-                                : 'max-w-2xl' // Keep user messages narrower
-                            }`}>
+                            <div className="flex-1 relative">
                               <MessageRenderer
                                 content={message.content}
                                 attachments={message.attachments}
@@ -702,11 +698,7 @@ const ChatInterface = ({  onSendMessage,
                             <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center">
                               {message.sender === 'user' ? <User size={16} /> : <Bot size={16} />}
                             </div>
-                            <div className={`flex-1 relative ${
-                              message.sender === 'assistant' 
-                                ? 'max-w-4xl' // Constrain AI responses to readable width
-                                : 'max-w-2xl' // Keep user messages narrower
-                            }`}>
+                            <div className="flex-1 relative">
                               <MessageRenderer
                                 content={message.content}
                                 attachments={message.attachments}
@@ -913,11 +905,7 @@ const ChatInterface = ({  onSendMessage,
                               <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
                                 {message.sender === 'user' ? <User size={16} className="text-white" /> : <Bot size={16} className="text-white" />}
                               </div>
-                              <div className={`flex-1 relative ${
-                                message.sender === 'assistant' 
-                                  ? 'max-w-4xl' // Constrain AI responses to readable width
-                                  : 'max-w-2xl' // Keep user messages narrower
-                              }`}>
+                              <div className="flex-1 relative">
                                 {/* BRANCH MESSAGE RENDERER */}
                                 <MessageRenderer
                                   content={message.content}
