@@ -327,6 +327,9 @@ export class EnhancedAIService {
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let contentBuffer = '';
+    let inCodeBlock = false;
+    let codeBlockBuffer = '';
 
     try {
       while (true) {
@@ -340,19 +343,80 @@ export class EnhancedAIService {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
-            if (data === '[DONE]') return;
+            if (data === '[DONE]') {
+              // Yield any remaining content
+              if (contentBuffer.trim()) {
+                yield contentBuffer;
+              }
+              return;
+            }
 
             try {
               const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                yield content;
+              const deltaContent = parsed.choices?.[0]?.delta?.content;
+              if (deltaContent) {
+                contentBuffer += deltaContent;
+                
+                // Check for code block boundaries
+                const lines = contentBuffer.split('\n');
+                let processedContent = '';
+                let tempBuffer = '';
+                
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  
+                  // Check for code block start
+                  if (line.match(/^```[\w]*$/) && !inCodeBlock) {
+                    // Starting a code block
+                    inCodeBlock = true;
+                    codeBlockBuffer = line + '\n';
+                    // Yield any content before the code block
+                    if (processedContent.trim()) {
+                      yield processedContent;
+                      processedContent = '';
+                    }
+                  } else if (line.trim() === '```' && inCodeBlock) {
+                    // Ending a code block
+                    inCodeBlock = false;
+                    codeBlockBuffer += line + '\n';
+                    // Yield the complete code block
+                    yield codeBlockBuffer;
+                    codeBlockBuffer = '';
+                  } else if (inCodeBlock) {
+                    // Inside a code block - accumulate
+                    codeBlockBuffer += line + (i < lines.length - 1 ? '\n' : '');
+                  } else {
+                    // Outside code block - process normally
+                    if (i === lines.length - 1 && !deltaContent.endsWith('\n')) {
+                      // Last line might be incomplete, keep in buffer
+                      tempBuffer = line;
+                    } else {
+                      processedContent += line + (i < lines.length - 1 ? '\n' : '');
+                    }
+                  }
+                }
+                
+                // Yield processed content if not in code block
+                if (!inCodeBlock && processedContent.trim()) {
+                  yield processedContent;
+                  contentBuffer = tempBuffer;
+                } else if (inCodeBlock) {
+                  // Keep accumulating in code block
+                  contentBuffer = '';
+                } else {
+                  contentBuffer = tempBuffer;
+                }
               }
             } catch (e) {
               // Skip invalid JSON
             }
           }
         }
+      }
+      
+      // Handle any remaining content
+      if (contentBuffer.trim()) {
+        yield contentBuffer;
       }
     } finally {
       reader.releaseLock();
@@ -418,12 +482,71 @@ export class EnhancedAIService {
       // Send message and stream response
       const result = await chat.sendMessageStream(currentMessageParts);
       
-      // Stream the response
+      // Code block boundary detection for Gemini streaming
+      let contentBuffer = '';
+      let inCodeBlock = false;
+      let codeBlockBuffer = '';
+      
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();
         if (chunkText) {
-          yield chunkText;
+          contentBuffer += chunkText;
+          
+          // Check for code block boundaries
+          const lines = contentBuffer.split('\n');
+          let processedContent = '';
+          let tempBuffer = '';
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Check for code block start
+            if (line.match(/^```[\w]*$/) && !inCodeBlock) {
+              // Starting a code block
+              inCodeBlock = true;
+              codeBlockBuffer = line + '\n';
+              // Yield any content before the code block
+              if (processedContent.trim()) {
+                yield processedContent;
+                processedContent = '';
+              }
+            } else if (line.trim() === '```' && inCodeBlock) {
+              // Ending a code block
+              inCodeBlock = false;
+              codeBlockBuffer += line + '\n';
+              // Yield the complete code block
+              yield codeBlockBuffer;
+              codeBlockBuffer = '';
+            } else if (inCodeBlock) {
+              // Inside a code block - accumulate
+              codeBlockBuffer += line + (i < lines.length - 1 ? '\n' : '');
+            } else {
+              // Outside code block - process normally
+              if (i === lines.length - 1 && !chunkText.endsWith('\n')) {
+                // Last line might be incomplete, keep in buffer
+                tempBuffer = line;
+              } else {
+                processedContent += line + (i < lines.length - 1 ? '\n' : '');
+              }
+            }
+          }
+          
+          // Yield processed content if not in code block
+          if (!inCodeBlock && processedContent.trim()) {
+            yield processedContent;
+            contentBuffer = tempBuffer;
+          } else if (inCodeBlock) {
+            // Keep accumulating in code block
+            contentBuffer = '';
+          } else {
+            contentBuffer = tempBuffer;
+          }
         }
+      }
+      
+      // Handle any remaining content
+      if (contentBuffer.trim()) {
+        yield contentBuffer;
       }
 
       // Return a placeholder message - the actual message will be constructed by the caller
