@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { processStreamingChunk } from '../utils/codeBlockUtils';
 import type { SettingsConfig } from '../components/SettingsPopup';
 import type { FileAttachment } from '../components/FileUpload';
 
@@ -356,16 +355,57 @@ export class EnhancedAIService {
               const parsed = JSON.parse(data);
               const deltaContent = parsed.choices?.[0]?.delta?.content;
               if (deltaContent) {
-                // Use the utility function to process streaming chunks
-                const result = processStreamingChunk(deltaContent, contentBuffer, inCodeBlock, codeBlockBuffer);
+                contentBuffer += deltaContent;
                 
-                if (result.processedContent.trim()) {
-                  yield result.processedContent;
+                // Check for code block boundaries
+                const lines = contentBuffer.split('\n');
+                let processedContent = '';
+                let tempBuffer = '';
+                
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i];
+                  
+                  // Check for code block start
+                  if (line.match(/^```[\w]*$/) && !inCodeBlock) {
+                    // Starting a code block
+                    inCodeBlock = true;
+                    codeBlockBuffer = line + '\n';
+                    // Yield any content before the code block
+                    if (processedContent.trim()) {
+                      yield processedContent;
+                      processedContent = '';
+                    }
+                  } else if (line.trim() === '```' && inCodeBlock) {
+                    // Ending a code block
+                    inCodeBlock = false;
+                    codeBlockBuffer += line + '\n';
+                    // Yield the complete code block
+                    yield codeBlockBuffer;
+                    codeBlockBuffer = '';
+                  } else if (inCodeBlock) {
+                    // Inside a code block - accumulate
+                    codeBlockBuffer += line + (i < lines.length - 1 ? '\n' : '');
+                  } else {
+                    // Outside code block - process normally
+                    if (i === lines.length - 1 && !deltaContent.endsWith('\n')) {
+                      // Last line might be incomplete, keep in buffer
+                      tempBuffer = line;
+                    } else {
+                      processedContent += line + (i < lines.length - 1 ? '\n' : '');
+                    }
+                  }
                 }
                 
-                contentBuffer = result.newContentBuffer;
-                inCodeBlock = result.newInCodeBlock;
-                codeBlockBuffer = result.newCodeBlockBuffer;
+                // Yield processed content if not in code block
+                if (!inCodeBlock && processedContent.trim()) {
+                  yield processedContent;
+                  contentBuffer = tempBuffer;
+                } else if (inCodeBlock) {
+                  // Keep accumulating in code block
+                  contentBuffer = '';
+                } else {
+                  contentBuffer = tempBuffer;
+                }
               }
             } catch (e) {
               // Skip invalid JSON
@@ -450,16 +490,57 @@ export class EnhancedAIService {
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();
         if (chunkText) {
-          // Use the utility function to process streaming chunks
-          const result = processStreamingChunk(chunkText, contentBuffer, inCodeBlock, codeBlockBuffer);
+          contentBuffer += chunkText;
           
-          if (result.processedContent.trim()) {
-            yield result.processedContent;
+          // Check for code block boundaries
+          const lines = contentBuffer.split('\n');
+          let processedContent = '';
+          let tempBuffer = '';
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            // Check for code block start
+            if (line.match(/^```[\w]*$/) && !inCodeBlock) {
+              // Starting a code block
+              inCodeBlock = true;
+              codeBlockBuffer = line + '\n';
+              // Yield any content before the code block
+              if (processedContent.trim()) {
+                yield processedContent;
+                processedContent = '';
+              }
+            } else if (line.trim() === '```' && inCodeBlock) {
+              // Ending a code block
+              inCodeBlock = false;
+              codeBlockBuffer += line + '\n';
+              // Yield the complete code block
+              yield codeBlockBuffer;
+              codeBlockBuffer = '';
+            } else if (inCodeBlock) {
+              // Inside a code block - accumulate
+              codeBlockBuffer += line + (i < lines.length - 1 ? '\n' : '');
+            } else {
+              // Outside code block - process normally
+              if (i === lines.length - 1 && !chunkText.endsWith('\n')) {
+                // Last line might be incomplete, keep in buffer
+                tempBuffer = line;
+              } else {
+                processedContent += line + (i < lines.length - 1 ? '\n' : '');
+              }
+            }
           }
           
-          contentBuffer = result.newContentBuffer;
-          inCodeBlock = result.newInCodeBlock;
-          codeBlockBuffer = result.newCodeBlockBuffer;
+          // Yield processed content if not in code block
+          if (!inCodeBlock && processedContent.trim()) {
+            yield processedContent;
+            contentBuffer = tempBuffer;
+          } else if (inCodeBlock) {
+            // Keep accumulating in code block
+            contentBuffer = '';
+          } else {
+            contentBuffer = tempBuffer;
+          }
         }
       }
       

@@ -5,7 +5,6 @@ import { EnhancedAIService } from './services/enhancedAIService';
 import { SettingsService } from './services/settingsService';
 import { versionService } from './services/versionService';
 import { conversationHistoryService, type ConversationHistory } from './services/conversationHistoryService';
-import { unifyCodeBlocks } from './utils/codeBlockUtils';
 import type { SettingsConfig } from './components/SettingsPopup';
 import type { FileAttachment } from './components/FileUpload';
 import { v4 as uuidv4 } from 'uuid';
@@ -139,7 +138,7 @@ function App() {
     // Add user message immediately
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: unifyCodeBlocks(messageContent), // Apply code block unification
+      content: messageContent,
       sender: 'user',
       timestamp: new Date(),
       branchId: branchId || currentBranchId || undefined,

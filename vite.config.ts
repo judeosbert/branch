@@ -1,9 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import msClarity from 'vite-plugin-ms-clarity'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    msClarity('sfn4h0y9ii'),
+  ],
   base: './', // Use relative paths for assets
   build: {
     outDir: 'dist',
