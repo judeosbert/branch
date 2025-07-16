@@ -35,6 +35,7 @@ interface EnhancedInputProps {
   maxFileSize?: number;
   acceptedFileTypes?: string[];
   showVoiceRecording?: boolean;
+  triggerGlow?: boolean; // New prop to trigger glow effect
 }
 
 const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
@@ -59,13 +60,15 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
     'audio/*',
     'video/*'
   ],
-  showVoiceRecording = true
+  showVoiceRecording = true,
+  triggerGlow = false
 }, ref) => {
   const [attachments, setAttachments] = useState<FileAttachment[]>([]);
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [isGlowing, setIsGlowing] = useState(false);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -120,6 +123,25 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
     };
   }, []);
 
+  // Glow effect when triggerGlow changes
+  useEffect(() => {
+    if (triggerGlow) {
+      setIsGlowing(true);
+      const timer = setTimeout(() => {
+        setIsGlowing(false);
+      }, 2000); // Match the animation duration (2 seconds)
+      
+      return () => clearTimeout(timer);
+    }
+  }, [triggerGlow]);
+
+  // Clear glow animation when input is manually cleared
+  useEffect(() => {
+    if (value.trim() === '' && isGlowing) {
+      setIsGlowing(false);
+    }
+  }, [value, isGlowing]);
+
   // Recording timer
   useEffect(() => {
     if (isRecording && !isPaused) {
@@ -148,10 +170,11 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
       attachments: attachments
     });
     
-    // Clear form
+    // Clear form and stop glow animation
     onChange('');
     setAttachments([]);
     setShowFileUpload(false);
+    setIsGlowing(false);
   }, [value, attachments, disabled, onSubmit, onChange]);
 
   const handleFilesAdded = useCallback((files: FileAttachment[]) => {
@@ -315,7 +338,13 @@ const EnhancedInput = forwardRef<HTMLTextAreaElement, EnhancedInputProps>(({
   const canSubmit = (value.trim() || attachments.length > 0) && !disabled;
 
   return (
-    <div className={`border border-gray-300 rounded-lg bg-white ${className}`}>
+    <div 
+      className={`border rounded-lg bg-white transition-all duration-300 ${
+        isGlowing 
+          ? 'google-glow-animation border-transparent' 
+          : 'border-gray-300'
+      } ${className}`}
+    >
       {/* File Upload Area */}
       {showFileUpload && (
         <div className="p-4 border-b border-gray-200">

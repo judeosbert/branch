@@ -86,6 +86,7 @@ const ChatInterface = ({  onSendMessage,
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [userHasScrolled, setUserHasScrolled] = useState(false);
   const [lastCompletedMessageId, setLastCompletedMessageId] = useState<string | null>(null);
+  const [triggerInputGlow, setTriggerInputGlow] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const branchMessagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -563,6 +564,9 @@ const ChatInterface = ({  onSendMessage,
                   <div className="h-full flex items-center justify-center">
                     <WelcomeScreen onSelectPrompt={(prompt) => {
                       setInputValue(prompt);
+                      setTriggerInputGlow(true);
+                      // Reset the glow trigger after a short delay
+                      setTimeout(() => setTriggerInputGlow(false), 100);
                       textareaRef.current?.focus();
                     }} />
                   </div>
@@ -649,6 +653,7 @@ const ChatInterface = ({  onSendMessage,
                   placeholder="Message Branch AI..."
                   disabled={isLoading}
                   className="w-full"
+                  triggerGlow={triggerInputGlow}
                 />
                 
                 <div className="mt-2 text-xs text-center text-gray-500 w-full">
@@ -763,6 +768,7 @@ const ChatInterface = ({  onSendMessage,
                         placeholder="Message Branch AI..."
                         disabled={isLoading}
                         className="w-full"
+                        triggerGlow={triggerInputGlow}
                       />
                       
                       <div className="mt-2 text-xs text-center text-gray-500 w-full">
@@ -969,6 +975,7 @@ const ChatInterface = ({  onSendMessage,
                           placeholder="Continue this branch conversation..."
                           disabled={isLoading}
                           className="w-full border-green-300 focus:ring-green-500"
+                          triggerGlow={triggerInputGlow}
                         />
                         
                         <div className="mt-2 text-xs text-center text-green-600 w-full">
