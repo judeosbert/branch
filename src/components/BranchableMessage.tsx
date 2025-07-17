@@ -17,7 +17,7 @@ interface BranchableMessageProps {
 
 // Utility to split content into branchable units: preserve markdown structure
 function parseUnits(content: string) {
-  const units: Array<{ text: string; type: 'line' | 'codeblock' }> = [];
+  const units: Array<{ text: string; type: 'line' | 'codeblock'; isBranchable: boolean }> = [];
   const codeBlockRegex = /```[\s\S]*?```/g;
   let lastIndex = 0;
   let match;
@@ -29,11 +29,16 @@ function parseUnits(content: string) {
       // split by newline but preserve other markdown formatting
       const lines = before.split('\n');
       lines.forEach(line => {
-        if (line.trim() !== '') units.push({ text: line, type: 'line' });
+        if (line.trim() !== '') {
+          const isBranchable = line.includes('--BranchableSection--');
+          // Remove the marker from the displayed text
+          const displayText = line.replace(/--BranchableSection--\s*/g, '');
+          units.push({ text: displayText, type: 'line', isBranchable });
+        }
       });
     }
-    // code block (keep as single unit)
-    units.push({ text: match[0], type: 'codeblock' });
+    // code block (keep as single unit, not branchable)
+    units.push({ text: match[0], type: 'codeblock', isBranchable: false });
     lastIndex = match.index + match[0].length;
   }
   
@@ -42,7 +47,12 @@ function parseUnits(content: string) {
   if (after.trim()) {
     const lines = after.split('\n');
     lines.forEach(line => {
-      if (line.trim() !== '') units.push({ text: line, type: 'line' });
+      if (line.trim() !== '') {
+        const isBranchable = line.includes('--BranchableSection--');
+        // Remove the marker from the displayed text
+        const displayText = line.replace(/--BranchableSection--\s*/g, '');
+        units.push({ text: displayText, type: 'line', isBranchable });
+      }
     });
   }
   
@@ -175,18 +185,19 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
       {units.map((unit, idx) => {
         const branchCount = getBranchCount(unit.text);
         const isHovered = hoveredUnit === idx;
+        const shouldShowBranching = !disableBranching && unit.isBranchable;
         
         return (
           <div 
             key={idx} 
             className={`relative flex leading-normal rounded-md transition-all duration-200 mb-2 max-w-full ${
-              !disableBranching && isHovered ? 'bg-blue-50' : ''
+              shouldShowBranching && isHovered ? 'bg-blue-50' : ''
             }`}
-            onMouseEnter={!disableBranching ? () => setHoveredUnit(idx) : undefined}
-            onMouseLeave={!disableBranching ? () => setHoveredUnit(null) : undefined}
+            onMouseEnter={shouldShowBranching ? () => setHoveredUnit(idx) : undefined}
+            onMouseLeave={shouldShowBranching ? () => setHoveredUnit(null) : undefined}
           >
             {/* Tooltip - positioned above content but arrow points to branch icon */}
-            {!disableBranching && isHovered && (
+            {shouldShowBranching && isHovered && (
               <div className="absolute left-6 bottom-full mb-2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-50 animate-fade-in">
                 Branch from here
                 {/* Arrow pointing down and left to the branch icon */}
@@ -194,8 +205,8 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
               </div>
             )}
             
-            {/* Branch Icon - Only show if branching is enabled */}
-            {!disableBranching && (
+            {/* Branch Icon - Only show if branching is enabled AND unit is branchable */}
+            {shouldShowBranching && (
               <div className="absolute left-0 top-0 bottom-0 w-6 flex flex-col cursor-pointer z-10">
                 {/* First row - Branch Icon */}
                 <div 
@@ -248,7 +259,7 @@ const BranchableMessage: React.FC<BranchableMessageProps> = ({
             )}
             
             {/* Content */}
-            <div className={`${disableBranching ? 'w-full' : 'pl-8'} min-w-0 relative`}
+            <div className={`${shouldShowBranching ? 'pl-8' : 'w-full'} min-w-0 relative`}
               style={{ userSelect: 'text' }}
             >
               <div className="relative">

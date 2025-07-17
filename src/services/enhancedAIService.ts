@@ -2,6 +2,126 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { SettingsConfig } from '../components/SettingsPopup';
 import type { FileAttachment } from '../components/FileUpload';
 
+// System message to help LLMs understand Branch's capabilities and optimize their responses
+const BRANCH_SYSTEM_PROMPT = `# Branch AI Tool Context
+
+You are interacting with **Branch**, an advanced conversational AI interface that supports **branching conversations** and **visual navigation**. This tool transforms linear AI chats into explorable conversation trees.
+
+## 🌳 Core Features & UI
+
+### **Branching Conversations**
+- Users can **branch from ANY point** in our conversation by selecting specific text
+- Each branch creates a **new conversation thread** while preserving the original context
+- **Visual minimap** shows the conversation tree structure with nodes and connections
+- **Multi-level branching** supported (branches can have sub-branches)
+
+### **Split-Screen Interface**
+- **Single Panel**: Linear conversation view (default)
+- **Dual Panel**: When in a branch, shows:
+  - **Left Panel**: Parent conversation context (up to branch point)
+  - **Right Panel**: Active branch conversation
+- **Seamless navigation** between branches via minimap or branch buttons
+- **Reserved space** (256px) for minimap when branches exist
+
+### **Enhanced Input Features**
+- **File Upload**: Images, documents, audio, video support
+- **Voice Recording**: Built-in microphone recording with pause/resume
+- **Multi-colored Glow Effect**: Google logo colors when suggestions are selected
+- **Auto-focus**: Intelligent input focusing for better UX
+
+## 📝 Optimize Your Responses For:
+
+### **Branchable Content Structure**
+- **Clear topic transitions** that invite exploration
+- **Multiple perspectives** or approaches in single responses
+- **Distinct concepts** that could be explored separately
+- **Logical break points** with headers, sections, bullet points
+- **Progressive disclosure**: Start with overview, offer details through branching
+
+### **Visual Organization**
+- **Structured formatting**: Use headers, lists, and clear paragraphs
+- **Topic sentences** at paragraph beginnings for easy selection
+- **Cross-references** to related concepts that could be branched into
+- **Natural branching points** with phrases like:
+  - "We could explore this in more detail..."
+  - "This opens up several possibilities..."
+  - "An alternative approach would be..."
+
+### **Code Generation Best Practices**
+- **Complete, functional code blocks** (tool unifies code properly)
+- **Clear sections** within code that can be individually discussed
+- **Multiple implementation approaches** when relevant
+- **Explanatory comments** for better understanding
+- **Streaming-friendly**: Code blocks are properly handled during streaming
+
+## 🎯 Conversation Flow Optimization
+
+### **Branch-Aware Responses**
+- **Maintain context awareness** - users may jump between branches
+- **Use connecting phrases** like "Building on our earlier discussion..."
+- **Provide clear summaries** when wrapping up complex topics
+- **Reference previous context** clearly since users can return to earlier branches
+
+### **Encourage Exploration**
+- **End with actionable next steps** that invite further exploration
+- **Offer multiple solution paths** that can be explored separately
+- **Suggest related topics** that warrant their own branches
+- **Create "branch-worthy" content** with distinct, explorable segments
+
+### **🚨 CRITICAL BRANCHING RULE - ALWAYS FOLLOW THIS:**
+**When you want to provide branchable suggestions or content that users can explore separately, you MUST prepend the text with \`--BranchableSection--\`**
+
+**Examples:**
+- \`--BranchableSection--\` **Advanced Configuration**: For users who want to dive deeper into configuration options...
+- \`--BranchableSection--\` **Alternative Approach**: Here's a different way to solve this problem...
+- \`--BranchableSection--\` **Implementation Details**: Let's explore the technical implementation...
+
+**This marker is ESSENTIAL** - it tells the Branch interface which parts of your response can be branched from. Without this marker, users won't be able to branch from that content. Use it generously for any content that could benefit from separate exploration.
+
+## 🔄 User Workflow Examples
+
+1. **Research Flow**: User asks about a topic → You provide structured overview → User branches into specific aspects → Each branch explored independently
+2. **Problem-Solving**: User presents problem → You offer multiple approaches → User branches into preferred solution → Sub-branches for implementation details
+3. **Learning**: User asks for explanation → You provide progressive content → User branches into complex concepts → Focused explanations in separate threads
+4. **Code Development**: User requests feature → You provide architecture overview → User branches into specific components → Detailed implementation in each branch
+
+## 💡 Response Structure Template
+
+Structure your responses to maximize Branch's capabilities:
+
+\`\`\`
+# Main Topic Overview
+Brief introduction and key points...
+
+--BranchableSection-- ## Approach 1: [Branchable Topic]
+Detailed explanation that invites separate exploration...
+
+--BranchableSection-- ## Approach 2: [Alternative Method]  
+Another perspective that warrants its own branch...
+
+## Implementation Details
+Step-by-step process with clear, selectable segments...
+
+--BranchableSection-- ## Advanced Configuration
+For users who want to dive deeper into configuration options...
+
+## Next Steps & Related Topics
+- Regular content that provides context
+- --BranchableSection-- **Specific Feature Deep Dive**: Detailed exploration of a particular feature
+- --BranchableSection-- **Alternative Implementation**: Different approach worth exploring
+- --BranchableSection-- **Troubleshooting Guide**: Common issues and solutions
+\`\`\`
+
+## 🎨 Technical Context
+
+- **Multi-Provider Support**: OpenAI, Gemini, Mock services
+- **File Processing**: Images analyzed via vision models, documents processed
+- **Voice Integration**: Audio recordings transcribed and analyzed
+- **Real-time Streaming**: Responses stream in real-time with proper code block handling
+- **Microsoft Clarity**: Analytics tracking for usage insights
+
+Remember: Users navigate non-linearly through our conversation. Make each response valuable both standalone and as part of the larger conversation tree. Your goal is to create rich, explorable content that leverages Branch's unique branching capabilities for deeper, more organized conversations.`;
+
 interface AIMessage {
   id: string;
   content: string;
@@ -11,7 +131,7 @@ interface AIMessage {
 }
 
 interface ConversationMessage {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string | Array<{
     type: 'text' | 'image_url';
     text?: string;
@@ -35,6 +155,81 @@ export class EnhancedAIService {
     this.settings = settings;
   }
 
+  private shouldIncludeSystemPrompt(conversationHistory: AIMessage[]): boolean {
+    // Include system prompt if this is a new conversation (no history)
+    // or if the conversation doesn't contain the system prompt yet
+    return conversationHistory.length === 0 || 
+           !conversationHistory.some(msg => 
+             msg.content.includes('Branch AI Tool Context') || 
+             msg.content.includes('branching conversations')
+           );
+  }
+
+  private buildConversationWithSystemPrompt(
+    conversationHistory: AIMessage[],
+    branchContext?: BranchContext
+  ): ConversationMessage[] {
+    const messages: ConversationMessage[] = [];
+    
+    // Add system message for new conversations or conversations without context
+    if (this.shouldIncludeSystemPrompt(conversationHistory)) {
+      messages.push({
+        role: 'system',
+        content: BRANCH_SYSTEM_PROMPT
+      });
+    }
+    
+    // Add branch context if provided
+    if (branchContext) {
+      messages.push({
+        role: 'system',
+        content: `[Context: This is a branch from the text "${branchContext.selectedText}" in the previous conversation. The user wants to explore this specific aspect in more detail.]`
+      });
+    }
+    
+    // Add conversation history
+    for (const msg of conversationHistory) {
+      if (msg.attachments && msg.attachments.length > 0) {
+        // Handle messages with attachments
+        const messageContent: any[] = [];
+        
+        if (msg.content) {
+          messageContent.push({ type: 'text', text: msg.content });
+        }
+
+        for (const attachment of msg.attachments) {
+          if (attachment.type.startsWith('image/')) {
+            messageContent.push({
+              type: 'image_url',
+              image_url: {
+                url: attachment.data || attachment.url,
+                detail: 'high'
+              }
+            });
+          } else {
+            // For non-image files, include them as text descriptions
+            messageContent.push({
+              type: 'text',
+              text: `[File: ${attachment.name} (${attachment.type}, ${this.formatFileSize(attachment.size)})]`
+            });
+          }
+        }
+
+        messages.push({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: messageContent
+        });
+      } else {
+        messages.push({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content
+        });
+      }
+    }
+    
+    return messages;
+  }
+
   async *sendMessageStream(
     content: string, 
     attachments: FileAttachment[] = [],
@@ -42,7 +237,7 @@ export class EnhancedAIService {
     branchContext?: BranchContext
   ): AsyncGenerator<string, AIMessage, unknown> {
     if (this.settings.aiEngine === 'mock') {
-      yield* this.useMockServiceStream(content, attachments);
+      yield* this.useMockServiceStream(content, attachments, conversationHistory, branchContext);
       return this.createMessage('', 'assistant');
     }
 
@@ -85,7 +280,7 @@ export class EnhancedAIService {
         // For text-only messages, still fallback but warn the user
         console.warn('Falling back to mock service due to OpenAI API error');
         yield `⚠️ **Note**: Using mock AI service due to API error. Check console for details.\n\n`;
-        yield* this.useMockServiceStream(content, attachments);
+        yield* this.useMockServiceStream(content, attachments, conversationHistory, branchContext);
         return this.createMessage('', 'assistant');
       }
     } else if (this.settings.provider === 'gemini') {
@@ -120,12 +315,12 @@ export class EnhancedAIService {
         // For text-only messages, still fallback but warn the user
         console.warn('Falling back to mock service due to Gemini API error');
         yield `⚠️ **Note**: Using mock AI service due to API error. Check console for details.\n\n`;
-        yield* this.useMockServiceStream(content, attachments);
+        yield* this.useMockServiceStream(content, attachments, conversationHistory, branchContext);
         return this.createMessage('', 'assistant');
       }
     } else {
       // Fallback to mock for unknown providers
-      yield* this.useMockServiceStream(content, attachments);
+      yield* this.useMockServiceStream(content, attachments, conversationHistory, branchContext);
       return this.createMessage('', 'assistant');
     }
   }
@@ -218,55 +413,8 @@ export class EnhancedAIService {
     conversationHistory: AIMessage[],
     branchContext?: BranchContext
   ): AsyncGenerator<string, void, unknown> {
-    const messages: ConversationMessage[] = [];
-
-    // Add conversation history
-    for (const msg of conversationHistory) {
-      if (msg.attachments && msg.attachments.length > 0) {
-        // Handle messages with attachments
-        const messageContent: any[] = [];
-        
-        if (msg.content) {
-          messageContent.push({ type: 'text', text: msg.content });
-        }
-
-        for (const attachment of msg.attachments) {
-          if (attachment.type.startsWith('image/')) {
-            messageContent.push({
-              type: 'image_url',
-              image_url: {
-                url: attachment.data || attachment.url,
-                detail: 'high'
-              }
-            });
-          } else {
-            // For non-image files, include them as text descriptions
-            messageContent.push({
-              type: 'text',
-              text: `[File: ${attachment.name} (${attachment.type}, ${this.formatFileSize(attachment.size)})]`
-            });
-          }
-        }
-
-        messages.push({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: messageContent
-        });
-      } else {
-        messages.push({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.content
-        });
-      }
-    }
-
-    // Add branch context if provided
-    if (branchContext) {
-      messages.push({
-        role: 'user',
-        content: `Context: Based on the selected text "${branchContext.selectedText}" from the previous message, please continue the conversation focusing on this specific aspect.`
-      });
-    }
+    // Build conversation history with system prompt
+    const messages = this.buildConversationWithSystemPrompt(conversationHistory, branchContext);
 
     // Add current message with attachments
     const currentMessageContent: any[] = [];
@@ -423,11 +571,52 @@ export class EnhancedAIService {
     }
   }
 
+  private buildGeminiConversationHistory(
+    conversationHistory: AIMessage[],
+    branchContext?: BranchContext
+  ): any[] {
+    const history: any[] = [];
+    
+    // Add system message for new conversations as a user/model exchange
+    if (this.shouldIncludeSystemPrompt(conversationHistory)) {
+      history.push({
+        role: 'user',
+        parts: [{ text: 'Please understand the context of this conversation tool and optimize your responses accordingly.' }]
+      });
+      history.push({
+        role: 'model',
+        parts: [{ text: BRANCH_SYSTEM_PROMPT }]
+      });
+    }
+    
+    // Add branch context if provided
+    if (branchContext) {
+      history.push({
+        role: 'user',
+        parts: [{ text: `Context: This is a branch from the text "${branchContext.selectedText}" in the previous conversation. Please focus on this specific aspect.` }]
+      });
+      history.push({
+        role: 'model',
+        parts: [{ text: 'I understand this is a branch focusing on the selected text. I\'ll provide detailed exploration of this specific aspect.' }]
+      });
+    }
+    
+    // Add conversation history
+    for (const msg of conversationHistory) {
+      history.push({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        parts: [{ text: msg.content }]
+      });
+    }
+    
+    return history;
+  }
+
   private async *useGeminiServiceStream(
     content: string, 
     attachments: FileAttachment[] = [],
     conversationHistory: AIMessage[] = [],
-    _branchContext?: BranchContext
+    branchContext?: BranchContext
   ): AsyncGenerator<string, AIMessage, unknown> {
     try {
       // Initialize the Gemini API client
@@ -440,14 +629,8 @@ export class EnhancedAIService {
       // Get the model instance
       const model = genAI.getGenerativeModel({ model: geminiModel });
 
-      // Build chat history for Gemini
-      const chatHistory: any[] = [];
-      for (const msg of conversationHistory) {
-        chatHistory.push({
-          role: msg.sender === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }]
-        });
-      }
+      // Build chat history for Gemini with system prompt
+      const chatHistory = this.buildGeminiConversationHistory(conversationHistory, branchContext);
 
       // Start chat with history
       const chat = model.startChat({
@@ -724,25 +907,41 @@ If this is a text file, please copy and paste the content, and I'll be happy to 
     }
   }
 
-  private async *useMockServiceStream(content: string, attachments: FileAttachment[]): AsyncGenerator<string, void, unknown> {
+  private async *useMockServiceStream(
+    content: string, 
+    attachments: FileAttachment[], 
+    conversationHistory: AIMessage[] = [],
+    branchContext?: BranchContext
+  ): AsyncGenerator<string, void, unknown> {
+    const isNewConversation = this.shouldIncludeSystemPrompt(conversationHistory);
+    const isBranch = !!branchContext;
+    
     const responses = [
-      "I can see you've sent a message",
+      isNewConversation ? "Hello! I'm Branch AI, your conversational AI with branching capabilities. " : "I can see you've sent a message",
       attachments.length > 0 ? ` with ${attachments.length} file${attachments.length > 1 ? 's' : ''}` : '',
       `. Let me help you with that.`,
       '\n\n',
+      isBranch ? `🌿 **Branch Context**: This is a branch exploring "${branchContext?.selectedText}" in more detail.\n\n` : '',
       attachments.length > 0 ? `I notice you've attached:\n${attachments.map(f => `- ${f.name} (${f.type})`).join('\n')}\n\n` : '',
       `Regarding your message: "${content}"`,
       '\n\n',
+      isNewConversation ? 'Since this is a new conversation, I\'ll optimize my responses for Branch\'s branching capabilities:\n\n' : '',
       'This is a mock response that simulates streaming. ',
       'In a real implementation, this would be connected to an actual AI service like OpenAI GPT-4 Vision ',
       'which can analyze images, read documents, and understand various file formats.',
       '\n\n',
-      'The enhanced features include:',
-      '\n- **Image Analysis**: Understanding and describing images in detail',
-      '\n- **Document Processing**: Reading and analyzing text documents',
-      '\n- **Audio/Video Support**: Handling multimedia files',
-      '\n- **File Context**: Using file content to inform responses',
-      '\n- **Voice Recording**: Support for voice messages',
+      '## Enhanced Features:',
+      '\n- **🌳 Branching Conversations**: You can branch from any text I provide',
+      '\n- **📊 Visual Navigation**: Minimap shows conversation structure',
+      '\n- **📎 File Analysis**: Understanding and describing images in detail',
+      '\n- **📄 Document Processing**: Reading and analyzing text documents',
+      '\n- **🎵 Audio/Video Support**: Handling multimedia files',
+      '\n- **🎤 Voice Recording**: Support for voice messages',
+      '\n\n',
+      '## Branching Suggestions:',
+      '\n- --BranchableSection-- **File Processing Details**: How different file types are handled and analyzed',
+      '\n- --BranchableSection-- **AI Service Integration**: Technical implementation details and API configurations',
+      '\n- --BranchableSection-- **User Interface Features**: Split-screen navigation and minimap capabilities',
       '\n\n',
       'All files are processed securely and analyzed to provide relevant insights for your conversation.'
     ];
